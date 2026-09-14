@@ -13,20 +13,32 @@ function BidControls() {
     skipPlayer
   } = useGame();
 
-  if (!roomData || !myTeam) return null;
+  // Check required game data first
+  if (!roomData || !myTeam) {
+    return null;
+  }
 
   const auction = roomData.auction;
+
+  // Store currentPlayer in a local variable
   const currentPlayer = auction.currentPlayer;
 
-  // Make TypeScript certain that currentPlayer exists
-  if (!currentPlayer) return null;
+  // IMPORTANT: TypeScript null check
+  if (!currentPlayer) {
+    return null;
+  }
 
-  const isAuctionActive = roomData.gameState === 'AUCTION';
-  const isPaused = roomData.gameState === 'PAUSED';
+  const isAuctionActive =
+    roomData.gameState === 'AUCTION';
 
-  const hasSkipped = skippedPlayers.includes(currentPlayer.id);
+  const isPaused =
+    roomData.gameState === 'PAUSED';
 
-  const isHighestBidder = auction.highestBidderId === myTeamId;
+  const hasSkipped =
+    skippedPlayers.includes(currentPlayer.id);
+
+  const isHighestBidder =
+    auction.highestBidderId === myTeamId;
 
   const nextBid = auction.highestBidderId
     ? Math.round(
@@ -34,7 +46,8 @@ function BidControls() {
       ) / 100
     : auction.currentBid;
 
-  const canAfford = myTeam.purse >= nextBid;
+  const canAfford =
+    myTeam.purse >= nextBid;
 
   const isSquadFull =
     myTeam.squadSize >= myTeam.maxSquadSize;
@@ -50,6 +63,7 @@ function BidControls() {
   return (
     <div className="bid-controls">
 
+      {/* Current bid and highest bidder */}
       <div className="bid-info-row">
 
         <div className="bid-info-item">
@@ -80,6 +94,7 @@ function BidControls() {
 
       </div>
 
+      {/* Purse information */}
       <div className="bid-purse-row">
 
         <span className="purse-label">
@@ -96,6 +111,7 @@ function BidControls() {
 
       </div>
 
+      {/* Player skipped */}
       {hasSkipped ? (
 
         <div className="skipped-banner">
@@ -104,35 +120,44 @@ function BidControls() {
 
       ) : isSquadFull ? (
 
+        /* Squad full */
         <div className="skipped-banner">
           📋 Squad Full — Cannot purchase more players
         </div>
 
       ) : (
 
+        /* Bid buttons */
         <div className="bid-buttons">
 
           <button
             className={`btn-bid ${
               canBid ? '' : 'disabled'
-            } ${isHighestBidder ? 'highest' : ''}`}
+            } ${
+              isHighestBidder ? 'highest' : ''
+            }`}
             onClick={placeBid}
             disabled={!canBid}
           >
 
             {isHighestBidder ? (
 
-              <>✅ You are the highest bidder</>
+              <>
+                ✅ You are the highest bidder
+              </>
 
             ) : !canAfford ? (
 
               <>
-                💰 Cannot afford ₹{nextBid.toFixed(2)} Cr
+                💰 Cannot afford ₹
+                {nextBid.toFixed(2)} Cr
               </>
 
             ) : isPaused ? (
 
-              <>⏸️ Auction Paused</>
+              <>
+                ⏸️ Auction Paused
+              </>
 
             ) : (
 
