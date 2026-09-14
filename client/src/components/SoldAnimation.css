@@ -1,0 +1,109 @@
+/* client/src/components/SoldAnimation.css */
+.sold-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  animation: overlayFadeIn 0.3s ease;
+  pointer-events: none;
+}
+
+.sold-overlay.sold {
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.sold-overlay.unsold {
+  background: rgba(255, 23, 68, 0.15);
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sold-content {
+  text-align: center;
+  animation: stampIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes stampIn {
+  0% {
+    transform: scale(3) rotate(-15deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+.sold-stamp {
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 900;
+  color: var(--sold-green);
+  text-shadow: 0 0 40px rgba(0, 230, 118, 0.5);
+  margin-bottom: 16px;
+}
+
+.unsold-stamp {
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 900;
+  color: var(--unsold-red);
+  text-shadow: 0 0 40px rgba(255, 23, 68, 0.5);
+  margin-bottom: 16px;
+}
+
+.sold-player-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.sold-to {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.sold-team-name {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 12px;
+}
+
+.sold-price {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--accent-gold);
+  text-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+@media (max-width: 480px) {
+  .sold-stamp,
+  .unsold-stamp {
+    font-size: 42px;
+  }
+
+  .sold-player-name {
+    font-size: 22px;
+  }
+
+  .sold-price {
+    font-size: 28px;
+  }
+}
