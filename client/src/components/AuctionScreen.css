@@ -1,0 +1,360 @@
+/* client/src/components/AuctionScreen.css */
+.auction-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.auction-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(10, 14, 39, 0.95);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.auction-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.auction-logo {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.auction-room-code {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.auction-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-container {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.timer-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.timer-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.state-badge {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.state-badge.reveal {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--accent-gold);
+  animation: pulse 1s infinite;
+}
+
+.state-badge.sold {
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--sold-green);
+  animation: pulse 0.5s;
+}
+
+.state-badge.unsold {
+  background: rgba(255, 23, 68, 0.15);
+  color: var(--unsold-red);
+}
+
+.state-badge.paused {
+  background: rgba(255, 152, 0, 0.15);
+  color: var(--accent-orange);
+  animation: pulse 2s infinite;
+}
+
+.auction-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auction-progress-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.panel-toggle-btn {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 18px;
+}
+
+/* Main */
+.auction-main {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.auction-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.auction-side-desktop {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-panel-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.side-tab {
+  flex: 1;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 7px;
+  transition: all 0.2s;
+}
+
+.side-tab.active {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.waiting-message {
+  text-align: center;
+  padding: 60px 20px;
+  animation: pulse 2s infinite;
+}
+
+.waiting-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.waiting-message h2 {
+  color: var(--text-secondary);
+  font-size: 20px;
+}
+
+/* Host Controls */
+.host-controls {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  width: 100%;
+}
+
+.host-controls-title {
+  font-size: 13px;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.host-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-host {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s;
+}
+
+.btn-host:hover {
+  background: var(--border-color);
+  border-color: var(--accent-gold);
+}
+
+.btn-host-danger {
+  border-color: rgba(255, 68, 68, 0.3);
+  color: var(--accent-red);
+}
+
+.btn-host-danger:hover {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: var(--accent-red);
+}
+
+/* Mobile Panel */
+.mobile-panel-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 200;
+  animation: overlayFadeIn 0.3s;
+}
+
+.mobile-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 85%;
+  max-width: 400px;
+  background: var(--bg-primary);
+  padding: 16px;
+  overflow-y: auto;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.mobile-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mobile-panel-close {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Leave Button */
+.leave-btn-floating {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.leave-btn-floating:hover {
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .auction-side-desktop {
+    display: none;
+  }
+
+  .panel-toggle-btn {
+    display: flex;
+  }
+
+  .mobile-panel-overlay {
+    display: block;
+  }
+
+  .auction-main {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auction-header {
+    padding: 8px 12px;
+  }
+
+  .auction-logo {
+    font-size: 13px;
+  }
+
+  .timer-container {
+    width: 50px;
+    height: 50px;
+  }
+
+  .timer-text {
+    font-size: 18px;
+  }
+
+  .auction-main {
+    padding: 8px;
+  }
+
+  .host-buttons {
+    flex-direction: column;
+  }
+
+  .btn-host {
+    width: 100%;
+    text-align: center;
+  }
+}
