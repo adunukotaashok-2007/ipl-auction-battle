@@ -1,0 +1,289 @@
+/* client/src/components/Home.css */
+
+.home {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.home-bg-effects {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.25;
+}
+
+.bg-circle-1 {
+  width: 420px;
+  height: 420px;
+  background: #6c5ce7;
+  top: -160px;
+  left: -120px;
+}
+
+.bg-circle-2 {
+  width: 360px;
+  height: 360px;
+  background: #00cec9;
+  right: -120px;
+  top: 20%;
+}
+
+.bg-circle-3 {
+  width: 300px;
+  height: 300px;
+  background: #fdcb6e;
+  bottom: -120px;
+  left: 35%;
+}
+
+.home-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+.home-logo {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 15px;
+}
+
+.home-title {
+  margin: 0;
+  font-size: clamp(42px, 10vw, 72px);
+  font-weight: 900;
+  letter-spacing: 3px;
+  line-height: 1;
+}
+
+.home-subtitle {
+  margin: 8px 0 12px;
+  font-size: clamp(28px, 7vw, 46px);
+  font-weight: 800;
+  letter-spacing: 8px;
+}
+
+.home-desc {
+  margin: 0 auto 30px;
+  max-width: 420px;
+  font-size: 16px;
+  opacity: 0.75;
+  line-height: 1.5;
+}
+
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.btn {
+  border: none;
+  border-radius: 14px;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #6c5ce7, #4834d4);
+  color: white;
+  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.3);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #0984e3, #0652dd);
+  color: white;
+  box-shadow: 0 8px 24px rgba(9, 132, 227, 0.3);
+}
+
+.btn-lg {
+  min-height: 56px;
+  font-size: 17px;
+}
+
+.btn-full {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.btn-icon {
+  margin-right: 8px;
+  font-size: 20px;
+}
+
+.home-features {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.feature {
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.btn-back {
+  display: block;
+  margin: 0 0 25px;
+  padding: 9px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.home-title-sm {
+  margin: 0 0 25px;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.form-group {
+  text-align: left;
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: inherit;
+  outline: none;
+  font-size: 16px;
+}
+
+.input:focus {
+  border-color: #6c5ce7;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+}
+
+.input::placeholder {
+  opacity: 0.5;
+}
+
+.input-code {
+  text-align: center;
+  letter-spacing: 5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  .home {
+    padding: 18px;
+  }
+
+  .home-logo {
+    font-size: 58px;
+  }
+
+  .home-desc {
+    font-size: 14px;
+  }
+
+  .home-features {
+    gap: 7px;
+  }
+
+  .feature {
+    font-size: 11px;
+    padding: 7px 10px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .home {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .home-logo {
+    font-size: 42px;
+    margin-bottom: 8px;
+  }
+
+  .home-title {
+    font-size: 38px;
+  }
+
+  .home-subtitle {
+    font-size: 24px;
+    margin: 4px 0 8px;
+  }
+
+  .home-desc {
+    margin-bottom: 16px;
+  }
+
+  .home-buttons {
+    gap: 10px;
+  }
+
+  .btn-lg {
+    min-height: 45px;
+    padding: 10px 16px;
+  }
+
+  .home-features {
+    margin-top: 16px;
+  }
+}
