@@ -1,0 +1,251 @@
+/* client/src/components/FinishScreen.css */
+.finish-screen {
+  min-height: 100vh;
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  animation: fadeIn 0.6s ease;
+}
+
+.finish-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.trophy-icon {
+  font-size: 80px;
+  animation: float 3s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+
+.finish-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent-gold), #FFA500);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+
+.finish-subtitle {
+  color: var(--text-secondary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.finish-stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.finish-stat {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 16px 24px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
+.finish-stat-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.finish-stat-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.finish-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.finish-team-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-top: 4px solid transparent;
+  animation: slideUp 0.4s ease;
+}
+
+.finish-team-card.my-finish-team {
+  border-color: rgba(255, 215, 0, 0.3);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+.finish-team-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.finish-medal {
+  font-size: 28px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.finish-team-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.finish-team-logo {
+  font-size: 32px;
+}
+
+.finish-team-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finish-you-tag {
+  background: var(--accent-gold);
+  color: #000;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.finish-team-player {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.finish-team-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.finish-team-stat {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px 14px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fts-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fts-value {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fts-green {
+  color: var(--accent-green);
+}
+
+.finish-squad-list {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.finish-squad-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  gap: 8px;
+}
+
+.finish-sq-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finish-sq-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.finish-sq-price {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  flex-shrink: 0;
+}
+
+.finish-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .finish-screen {
+    padding: 16px;
+  }
+
+  .trophy-icon {
+    font-size: 56px;
+  }
+
+  .finish-title {
+    font-size: 26px;
+  }
+
+  .finish-stats-row {
+    gap: 12px;
+  }
+
+  .finish-stat {
+    padding: 12px 16px;
+  }
+
+  .finish-stat-value {
+    font-size: 22px;
+  }
+
+  .finish-team-card {
+    padding: 14px;
+  }
+
+  .finish-team-stats {
+    gap: 8px;
+  }
+}
