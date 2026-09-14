@@ -1,13 +1,11 @@
-/* client/src/components/Home.css */
-
 .home {
   min-height: 100vh;
   width: 100%;
-  position: relative;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
   padding: 24px;
   box-sizing: border-box;
 }
@@ -15,9 +13,8 @@
 .home-bg-effects {
   position: absolute;
   inset: 0;
-  overflow: hidden;
   pointer-events: none;
-  z-index: 0;
+  overflow: hidden;
 }
 
 .bg-circle {
@@ -52,11 +49,11 @@
 }
 
 .home-content {
-  position: relative;
-  z-index: 1;
   width: 100%;
   max-width: 520px;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .home-logo {
@@ -81,8 +78,8 @@
 }
 
 .home-desc {
-  margin: 0 auto 30px;
   max-width: 420px;
+  margin: 0 auto 30px;
   font-size: 16px;
   opacity: 0.75;
   line-height: 1.5;
@@ -102,24 +99,16 @@
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .btn:hover {
   transform: translateY(-2px);
 }
 
-.btn:active {
-  transform: translateY(0);
-}
-
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
-  transform: none;
 }
 
 .btn-primary {
@@ -238,10 +227,6 @@
     font-size: 14px;
   }
 
-  .home-features {
-    gap: 7px;
-  }
-
   .feature {
     font-size: 11px;
     padding: 7px 10px;
@@ -272,10 +257,6 @@
 
   .home-desc {
     margin-bottom: 16px;
-  }
-
-  .home-buttons {
-    gap: 10px;
   }
 
   .btn-lg {

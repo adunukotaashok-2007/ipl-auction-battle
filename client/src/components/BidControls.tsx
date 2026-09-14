@@ -13,18 +13,14 @@ function BidControls() {
     skipPlayer
   } = useGame();
 
-  // Check required game data first
   if (!roomData || !myTeam) {
     return null;
   }
 
   const auction = roomData.auction;
-
-  // Store currentPlayer in a local variable
   const currentPlayer = auction.currentPlayer;
 
-  // IMPORTANT: TypeScript null check
-  if (!currentPlayer) {
+  if (currentPlayer === null) {
     return null;
   }
 
@@ -63,7 +59,6 @@ function BidControls() {
   return (
     <div className="bid-controls">
 
-      {/* Current bid and highest bidder */}
       <div className="bid-info-row">
 
         <div className="bid-info-item">
@@ -94,7 +89,6 @@ function BidControls() {
 
       </div>
 
-      {/* Purse information */}
       <div className="bid-purse-row">
 
         <span className="purse-label">
@@ -111,7 +105,6 @@ function BidControls() {
 
       </div>
 
-      {/* Player skipped */}
       {hasSkipped ? (
 
         <div className="skipped-banner">
@@ -120,14 +113,12 @@ function BidControls() {
 
       ) : isSquadFull ? (
 
-        /* Squad full */
         <div className="skipped-banner">
           📋 Squad Full — Cannot purchase more players
         </div>
 
       ) : (
 
-        /* Bid buttons */
         <div className="bid-buttons">
 
           <button
@@ -149,8 +140,7 @@ function BidControls() {
             ) : !canAfford ? (
 
               <>
-                💰 Cannot afford ₹
-                {nextBid.toFixed(2)} Cr
+                💰 Cannot afford ₹{nextBid.toFixed(2)} Cr
               </>
 
             ) : isPaused ? (
