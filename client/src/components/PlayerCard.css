@@ -1,0 +1,211 @@
+/* client/src/components/PlayerCard.css */
+.player-card {
+  background: linear-gradient(145deg, #1e254a 0%, #151b3a 100%);
+  border-radius: 20px;
+  padding: 24px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--border-color);
+  max-width: 320px;
+  margin: 0 auto;
+  animation: slideUp 0.5s ease;
+}
+
+.player-card.revealing {
+  animation: cardReveal 0.8s ease;
+}
+
+@keyframes cardReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) rotateY(20deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05) rotateY(0);
+  }
+  100% {
+    transform: scale(1) rotateY(0);
+  }
+}
+
+.player-card-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    transparent 0deg,
+    rgba(255, 215, 0, 0.05) 60deg,
+    transparent 120deg,
+    rgba(74, 144, 217, 0.05) 180deg,
+    transparent 240deg,
+    rgba(255, 215, 0, 0.05) 300deg,
+    transparent 360deg
+  );
+  animation: rotateGlow 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGlow {
+  to { transform: rotate(360deg); }
+}
+
+.player-photo-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 16px;
+}
+
+.player-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--accent-gold);
+  background: var(--bg-secondary);
+}
+
+.player-photo-fallback {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-gold);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+
+.player-rating {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  color: #000;
+  border: 2px solid var(--bg-primary);
+}
+
+.player-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.player-meta {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.player-role,
+.player-country {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.player-stats {
+  margin-bottom: 16px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.stat-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stat-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.stat-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
+}
+
+.player-base-price {
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.base-price-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.base-price-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+@media (max-width: 480px) {
+  .player-card {
+    padding: 18px 16px;
+    max-width: 280px;
+  }
+
+  .player-photo-container {
+    width: 100px;
+    height: 100px;
+  }
+
+  .player-photo,
+  .player-photo-fallback {
+    width: 100px;
+    height: 100px;
+  }
+
+  .player-name {
+    font-size: 18px;
+  }
+
+  .player-meta {
+    gap: 10px;
+  }
+
+  .player-role,
+  .player-country {
+    font-size: 12px;
+  }
+}
