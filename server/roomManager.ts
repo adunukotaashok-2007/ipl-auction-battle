@@ -133,7 +133,6 @@ export function joinRoom(
     return { teamId: '', error: 'Room is full (max 10 players)' };
   }
 
-  // Check for duplicate team names
   for (const [, existingTeam] of room.teams) {
     if (existingTeam.teamName.toLowerCase() === teamName.toLowerCase() && existingTeam.isConnected) {
       return { teamId: '', error: 'Team name already taken in this room' };
@@ -183,7 +182,6 @@ export function rejoinRoom(
     return { success: false, error: 'Team not found in room' };
   }
 
-  // Remove old socket mapping
   const oldSocketId = team.socketId;
   socketToRoom.delete(oldSocketId);
 
@@ -220,7 +218,6 @@ export function handleDisconnect(
   let newHostId: string | undefined;
   let newHostName: string | undefined;
 
-  // Transfer host if needed
   if (room.hostId === teamId) {
     for (const [id, t] of room.teams) {
       if (t.isConnected && id !== teamId) {
@@ -234,7 +231,6 @@ export function handleDisconnect(
     }
   }
 
-  // Check if room is empty
   let anyConnected = false;
   for (const [, t] of room.teams) {
     if (t.isConnected) {
@@ -244,7 +240,6 @@ export function handleDisconnect(
   }
 
   if (!anyConnected) {
-    // Clean up room after 5 minutes
     setTimeout(() => {
       const r = rooms.get(roomCode);
       if (r) {
@@ -340,11 +335,6 @@ export function getTeamSkippedPlayers(roomCode: string, teamId: string): string[
   return team.skippedPlayers;
 }
 
-// ==================== NEW FEATURES ====================
-
-/**
- * Save Playing XI + Impact Player for a team
- */
 export function saveTeamLineup(
   roomCode: string,
   teamId: string,
@@ -367,7 +357,6 @@ export function saveTeamLineup(
 
   const squadIds = new Set(team.squad.map((p) => p.player.id));
 
-  // Validate all selected players are from this team's squad
   for (const playerId of playingXI) {
     if (!squadIds.has(playerId)) {
       return { success: false, error: 'Invalid player in Playing XI' };
@@ -382,7 +371,6 @@ export function saveTeamLineup(
     return { success: false, error: 'Impact Player cannot also be in Playing XI' };
   }
 
-  // Unique check
   if (new Set(playingXI).size !== playingXI.length) {
     return { success: false, error: 'Duplicate players in Playing XI' };
   }
@@ -400,9 +388,6 @@ export function saveTeamLineup(
   return { success: true };
 }
 
-/**
- * Calculate final rankings based on Playing XI + Impact Player ratings
- */
 export function calculateRankings(roomCode: string): TeamRanking[] {
   const room = rooms.get(roomCode);
   if (!room) return [];
@@ -410,7 +395,6 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
   const rankings: TeamRanking[] = [];
 
   for (const [, team] of room.teams) {
-    // Skip teams with empty squads
     if (!team.squad || team.squad.length === 0) {
       continue;
     }
@@ -437,7 +421,6 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
     const playingXI = squadPlayers.filter((p) => lineup.playingXI.includes(p.id));
     const impactPlayer = squadPlayers.find((p) => p.id === lineup.impactPlayerId) || null;
 
-    // ---- VALIDATION ----
     const requiredXI = Math.min(11, squadPlayers.length);
 
     if (playingXI.length !== requiredXI && !(squadPlayers.length >= 11 && playingXI.length === 11)) {
@@ -456,7 +439,6 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
       continue;
     }
 
-    // Max 4 overseas in XI
     const overseasCount = playingXI.filter((p) => p.country !== 'India').length;
     if (overseasCount > 4) {
       rankings.push({
@@ -474,7 +456,6 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
       continue;
     }
 
-    // Must have at least 1 WK if available in squad
     const hasWKInSquad = squadPlayers.some((p) => p.role === 'Wicket-Keeper');
     const hasWKInXI = playingXI.some((p) => p.role === 'Wicket-Keeper');
     if (hasWKInSquad && !hasWKInXI) {
@@ -493,19 +474,14 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
       continue;
     }
 
-    // ---- SCORE CALCULATION ----
-    // Base = average overall rating of XI
     const xiAverage =
       playingXI.reduce((sum, p) => sum + (p.rating || 0), 0) / Math.max(playingXI.length, 1);
 
-    // Impact bonus = 20% of impact player rating
     const impactBonus = impactPlayer ? (impactPlayer.rating || 0) * 0.2 : 0;
 
-    // Role balance bonus
     const roles = new Set(playingXI.map((p) => p.role));
     const balanceBonus = roles.size >= 3 ? 10 : 0;
 
-    // Batting + bowling depth bonus
     const battingDepth =
       playingXI.reduce((sum, p) => sum + (p.battingRating || 0), 0) / Math.max(playingXI.length, 1);
     const bowlingDepth =
@@ -527,7 +503,6 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
     });
   }
 
-  // Sort by score descending and assign ranks
   rankings.sort((a, b) => b.score - a.score);
   rankings.forEach((team, index) => {
     team.rank = index + 1;
@@ -537,9 +512,6 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
   return rankings;
 }
 
-/**
- * Reset lineups (useful when restarting auction)
- */
 export function resetAllLineups(roomCode: string): void {
   const room = rooms.get(roomCode);
   if (!room) return;
