@@ -1,32 +1,15 @@
-// server/types.ts
+export type PlayerRole = 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper';
+
 export interface Player {
   id: string;
   name: string;
   photo: string;
-  role: 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper';
+  role: PlayerRole;
   country: string;
   basePrice: number;
   rating: number;
   battingRating: number;
   bowlingRating: number;
-}
-
-export interface TeamInfo {
-  id: string;
-  socketId: string;
-  playerName: string;
-  teamName: string;
-  teamShortName: string;
-  teamColor: string;
-  teamLogo: string;
-  purse: number;
-  initialPurse: number;
-  squad: PurchasedPlayer[];
-  skippedPlayers: string[];
-  isReady: boolean;
-  isConnected: boolean;
-  isHost: boolean;
-  maxSquadSize: number;
 }
 
 export interface PurchasedPlayer {
@@ -42,6 +25,7 @@ export type GameState =
   | 'UNSOLD'
   | 'NEXT_PLAYER'
   | 'PAUSED'
+  | 'LINEUP_SELECTION'
   | 'FINISHED';
 
 export interface AuctionState {
@@ -61,37 +45,29 @@ export interface AuctionState {
   isPaused: boolean;
 }
 
-export interface Room {
-  code: string;
-  teams: Map<string, TeamInfo>;
-  gameState: GameState;
-  auction: AuctionState;
-  playerPool: Player[];
-  auctionOrder: string[];
-  hostId: string;
-  createdAt: number;
-  settings: RoomSettings;
+export interface TeamLineup {
+  teamId: string;
+  playingXI: string[]; // Array of 11 Player IDs
+  impactPlayerId: string | null; // 1 Player ID
+  submitted: boolean;
 }
 
-export interface RoomSettings {
-  initialPurse: number;
-  maxSquadSize: number;
-  bidIncrement: number;
-  auctionTimerSeconds: number;
-  maxPlayers: number;
+export interface TeamRanking {
+  teamId: string;
+  teamName: string;
+  teamShortName: string;
+  teamColor: string;
+  score: number;
+  rank: number;
+  playingXI: Player[];
+  impactPlayer: Player | null;
+  isValidLineup: boolean;
+  errorMessage?: string;
 }
 
-export interface RoomPublicData {
-  code: string;
-  teams: TeamPublicData[];
-  gameState: GameState;
-  auction: AuctionState;
-  hostId: string;
-  settings: RoomSettings;
-}
-
-export interface TeamPublicData {
+export interface TeamData {
   id: string;
+  socketId: string;
   playerName: string;
   teamName: string;
   teamShortName: string;
@@ -106,37 +82,22 @@ export interface TeamPublicData {
   isHost: boolean;
   squadSize: number;
   maxSquadSize: number;
+  lineupSubmitted?: boolean;
+  lineup?: TeamLineup;
 }
 
-export interface ClientEvents {
-  'create-room': (data: { playerName: string; teamName: string; teamShortName: string; teamColor: string; teamLogo: string }) => void;
-  'join-room': (data: { roomCode: string; playerName: string; teamName: string; teamShortName: string; teamColor: string; teamLogo: string }) => void;
-  'rejoin-room': (data: { roomCode: string; teamId: string }) => void;
-  'toggle-ready': () => void;
-  'start-auction': () => void;
-  'place-bid': () => void;
-  'skip-player': () => void;
-  'pause-auction': () => void;
-  'resume-auction': () => void;
-  'next-player': () => void;
-  'end-auction': () => void;
-  'restart-auction': () => void;
-  'disconnect': () => void;
-}
-
-export interface ServerEvents {
-  'room-created': (data: { roomCode: string; teamId: string }) => void;
-  'room-joined': (data: { teamId: string }) => void;
-  'room-updated': (data: RoomPublicData) => void;
-  'auction-updated': (data: AuctionState) => void;
-  'player-sold': (data: { player: Player; teamId: string; teamName: string; price: number }) => void;
-  'player-unsold': (data: { player: Player }) => void;
-  'auction-finished': () => void;
-  'bid-placed': (data: { teamId: string; teamName: string; amount: number }) => void;
-  'player-skipped': (data: { teamId: string; playerId: string }) => void;
-  'timer-update': (data: { timer: number }) => void;
-  'error': (data: { message: string }) => void;
-  'reconnected': (data: { teamId: string }) => void;
-  'host-changed': (data: { newHostId: string; newHostName: string }) => void;
-  'your-skip-list': (data: { skippedPlayers: string[] }) => void;
+export interface RoomData {
+  code: string;
+  hostId: string;
+  teams: TeamData[];
+  gameState: GameState;
+  auction: AuctionState;
+  rankings?: TeamRanking[];
+  settings: {
+    initialPurse: number;
+    maxSquadSize: number;
+    bidIncrement: number;
+    auctionTimerSeconds: number;
+    maxPlayers: number;
+  };
 }
