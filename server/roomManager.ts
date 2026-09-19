@@ -1,6 +1,15 @@
 // server/roomManager.ts
 import { v4 as uuidv4 } from 'uuid';
-import { Room, TeamInfo, RoomPublicData, TeamPublicData, RoomSettings, Player } from './types';
+import {
+  Room,
+  TeamInfo,
+  RoomPublicData,
+  TeamPublicData,
+  RoomSettings,
+  Player,
+  TeamLineup,
+  TeamRanking,
+} from './types';
 import { playerDatabase } from './players';
 
 const rooms = new Map<string, Room>();
@@ -62,6 +71,8 @@ export function createRoom(
     isConnected: true,
     isHost: true,
     maxSquadSize: defaultSettings.maxSquadSize,
+    lineupSubmitted: false,
+    lineup: undefined,
   };
 
   const shuffledPlayers = shuffleArray([...playerDatabase]);
@@ -91,6 +102,7 @@ export function createRoom(
     hostId: teamId,
     createdAt: Date.now(),
     settings: defaultSettings,
+    rankings: [],
   };
 
   rooms.set(roomCode, room);
@@ -146,6 +158,8 @@ export function joinRoom(
     isConnected: true,
     isHost: false,
     maxSquadSize: room.settings.maxSquadSize,
+    lineupSubmitted: false,
+    lineup: undefined,
   };
 
   room.teams.set(teamId, team);
@@ -181,7 +195,9 @@ export function rejoinRoom(
   return { success: true };
 }
 
-export function handleDisconnect(socketId: string): { roomCode: string; teamId: string; newHostId?: string; newHostName?: string } | null {
+export function handleDisconnect(
+  socketId: string
+): { roomCode: string; teamId: string; newHostId?: string; newHostName?: string } | null {
   const mapping = socketToRoom.get(socketId);
   if (!mapping) return null;
 
@@ -301,6 +317,7 @@ export function getRoomPublicData(room: Room): RoomPublicData {
       isHost: team.isHost,
       squadSize: team.squad.length,
       maxSquadSize: team.maxSquadSize,
+      lineupSubmitted: team.lineupSubmitted || false,
     });
   }
 
@@ -311,6 +328,7 @@ export function getRoomPublicData(room: Room): RoomPublicData {
     auction: room.auction,
     hostId: room.hostId,
     settings: room.settings,
+    rankings: room.rankings || [],
   };
 }
 
@@ -320,6 +338,217 @@ export function getTeamSkippedPlayers(roomCode: string, teamId: string): string[
   const team = room.teams.get(teamId);
   if (!team) return [];
   return team.skippedPlayers;
+}
+
+// ==================== NEW FEATURES ====================
+
+/**
+ * Save Playing XI + Impact Player for a team
+ */
+export function saveTeamLineup(
+  roomCode: string,
+  teamId: string,
+  playingXI: string[],
+  impactPlayerId: string | null
+): { success: boolean; error?: string } {
+  const room = rooms.get(roomCode);
+  if (!room) {
+    return { success: false, error: 'Room not found' };
+  }
+
+  const team = room.teams.get(teamId);
+  if (!team) {
+    return { success: false, error: 'Team not found' };
+  }
+
+  if (team.lineupSubmitted) {
+    return { success: false, error: 'Lineup already submitted' };
+  }
+
+  const squadIds = new Set(team.squad.map((p) => p.player.id));
+
+  // Validate all selected players are from this team's squad
+  for (const playerId of playingXI) {
+    if (!squadIds.has(playerId)) {
+      return { success: false, error: 'Invalid player in Playing XI' };
+    }
+  }
+
+  if (impactPlayerId && !squadIds.has(impactPlayerId)) {
+    return { success: false, error: 'Impact Player is not in your squad' };
+  }
+
+  if (impactPlayerId && playingXI.includes(impactPlayerId)) {
+    return { success: false, error: 'Impact Player cannot also be in Playing XI' };
+  }
+
+  // Unique check
+  if (new Set(playingXI).size !== playingXI.length) {
+    return { success: false, error: 'Duplicate players in Playing XI' };
+  }
+
+  const lineup: TeamLineup = {
+    teamId,
+    playingXI,
+    impactPlayerId,
+    submitted: true,
+  };
+
+  team.lineup = lineup;
+  team.lineupSubmitted = true;
+
+  return { success: true };
+}
+
+/**
+ * Calculate final rankings based on Playing XI + Impact Player ratings
+ */
+export function calculateRankings(roomCode: string): TeamRanking[] {
+  const room = rooms.get(roomCode);
+  if (!room) return [];
+
+  const rankings: TeamRanking[] = [];
+
+  for (const [, team] of room.teams) {
+    // Skip teams with empty squads
+    if (!team.squad || team.squad.length === 0) {
+      continue;
+    }
+
+    const lineup = team.lineup;
+
+    if (!lineup || !lineup.submitted) {
+      rankings.push({
+        teamId: team.id,
+        teamName: team.teamName,
+        teamShortName: team.teamShortName,
+        teamColor: team.teamColor,
+        score: 0,
+        rank: 0,
+        playingXI: [],
+        impactPlayer: null,
+        isValidLineup: false,
+        errorMessage: 'Lineup not submitted',
+      });
+      continue;
+    }
+
+    const squadPlayers = team.squad.map((s) => s.player);
+    const playingXI = squadPlayers.filter((p) => lineup.playingXI.includes(p.id));
+    const impactPlayer = squadPlayers.find((p) => p.id === lineup.impactPlayerId) || null;
+
+    // ---- VALIDATION ----
+    const requiredXI = Math.min(11, squadPlayers.length);
+
+    if (playingXI.length !== requiredXI && !(squadPlayers.length >= 11 && playingXI.length === 11)) {
+      rankings.push({
+        teamId: team.id,
+        teamName: team.teamName,
+        teamShortName: team.teamShortName,
+        teamColor: team.teamColor,
+        score: 0,
+        rank: 0,
+        playingXI,
+        impactPlayer,
+        isValidLineup: false,
+        errorMessage: `Playing XI must have ${Math.min(11, squadPlayers.length)} players`,
+      });
+      continue;
+    }
+
+    // Max 4 overseas in XI
+    const overseasCount = playingXI.filter((p) => p.country !== 'India').length;
+    if (overseasCount > 4) {
+      rankings.push({
+        teamId: team.id,
+        teamName: team.teamName,
+        teamShortName: team.teamShortName,
+        teamColor: team.teamColor,
+        score: 0,
+        rank: 0,
+        playingXI,
+        impactPlayer,
+        isValidLineup: false,
+        errorMessage: `Too many overseas players (${overseasCount}/4)`,
+      });
+      continue;
+    }
+
+    // Must have at least 1 WK if available in squad
+    const hasWKInSquad = squadPlayers.some((p) => p.role === 'Wicket-Keeper');
+    const hasWKInXI = playingXI.some((p) => p.role === 'Wicket-Keeper');
+    if (hasWKInSquad && !hasWKInXI) {
+      rankings.push({
+        teamId: team.id,
+        teamName: team.teamName,
+        teamShortName: team.teamShortName,
+        teamColor: team.teamColor,
+        score: 0,
+        rank: 0,
+        playingXI,
+        impactPlayer,
+        isValidLineup: false,
+        errorMessage: 'Playing XI must include at least 1 Wicket-Keeper',
+      });
+      continue;
+    }
+
+    // ---- SCORE CALCULATION ----
+    // Base = average overall rating of XI
+    const xiAverage =
+      playingXI.reduce((sum, p) => sum + (p.rating || 0), 0) / Math.max(playingXI.length, 1);
+
+    // Impact bonus = 20% of impact player rating
+    const impactBonus = impactPlayer ? (impactPlayer.rating || 0) * 0.2 : 0;
+
+    // Role balance bonus
+    const roles = new Set(playingXI.map((p) => p.role));
+    const balanceBonus = roles.size >= 3 ? 10 : 0;
+
+    // Batting + bowling depth bonus
+    const battingDepth =
+      playingXI.reduce((sum, p) => sum + (p.battingRating || 0), 0) / Math.max(playingXI.length, 1);
+    const bowlingDepth =
+      playingXI.reduce((sum, p) => sum + (p.bowlingRating || 0), 0) / Math.max(playingXI.length, 1);
+    const depthBonus = (battingDepth + bowlingDepth) / 20;
+
+    const totalScore = Math.round(xiAverage + impactBonus + balanceBonus + depthBonus);
+
+    rankings.push({
+      teamId: team.id,
+      teamName: team.teamName,
+      teamShortName: team.teamShortName,
+      teamColor: team.teamColor,
+      score: totalScore,
+      rank: 0,
+      playingXI,
+      impactPlayer,
+      isValidLineup: true,
+    });
+  }
+
+  // Sort by score descending and assign ranks
+  rankings.sort((a, b) => b.score - a.score);
+  rankings.forEach((team, index) => {
+    team.rank = index + 1;
+  });
+
+  room.rankings = rankings;
+  return rankings;
+}
+
+/**
+ * Reset lineups (useful when restarting auction)
+ */
+export function resetAllLineups(roomCode: string): void {
+  const room = rooms.get(roomCode);
+  if (!room) return;
+
+  for (const [, team] of room.teams) {
+    team.lineupSubmitted = false;
+    team.lineup = undefined;
+  }
+  room.rankings = [];
 }
 
 export { rooms, socketToRoom };
