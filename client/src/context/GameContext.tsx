@@ -24,6 +24,7 @@ interface GameContextType {
   nextPlayer: () => void;
   endAuction: () => void;
   restartAuction: () => void;
+  submitLineup: (playingXI: string[], impactPlayerId: string | null) => void;
   leaveRoom: () => void;
   clearNotification: () => void;
 }
@@ -85,7 +86,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
 
     function onAuctionUpdated(data: AuctionState) {
-      setRoomData((prev) => prev ? { ...prev, auction: data } : null);
+      setRoomData((prev) => (prev ? { ...prev, auction: data } : null));
     }
 
     function onPlayerSold(data: { player: Player; teamId: string; teamName: string; price: number }) {
@@ -125,7 +126,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
 
     function onAuctionFinished() {
-      showNotification('🏆 Auction Complete!');
+      showNotification('🏆 Auction Complete! Select your Playing XI & Impact Player!');
     }
 
     socket.on('connect', onConnect);
@@ -168,13 +169,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setNotification(null), 3000);
   }, []);
 
-  const createRoom = useCallback((playerName: string, teamName: string, teamShortName: string, teamColor: string, teamLogo: string) => {
-    socket.emit('create-room', { playerName, teamName, teamShortName, teamColor, teamLogo });
-  }, []);
+  const createRoom = useCallback(
+    (playerName: string, teamName: string, teamShortName: string, teamColor: string, teamLogo: string) => {
+      socket.emit('create-room', { playerName, teamName, teamShortName, teamColor, teamLogo });
+    },
+    []
+  );
 
-  const joinRoom = useCallback((roomCode: string, playerName: string, teamName: string, teamShortName: string, teamColor: string, teamLogo: string) => {
-    socket.emit('join-room', { roomCode, playerName, teamName, teamShortName, teamColor, teamLogo });
-  }, []);
+  const joinRoom = useCallback(
+    (roomCode: string, playerName: string, teamName: string, teamShortName: string, teamColor: string, teamLogo: string) => {
+      socket.emit('join-room', { roomCode, playerName, teamName, teamShortName, teamColor, teamLogo });
+    },
+    []
+  );
 
   const toggleReadyFn = useCallback(() => {
     socket.emit('toggle-ready');
@@ -210,6 +217,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const restartAuctionFn = useCallback(() => {
     socket.emit('restart-auction');
+  }, []);
+
+  const submitLineupFn = useCallback((playingXI: string[], impactPlayerId: string | null) => {
+    socket.emit('submit-lineup', { playingXI, impactPlayerId });
   }, []);
 
   const leaveRoom = useCallback(() => {
@@ -248,6 +259,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         nextPlayer: nextPlayerFn,
         endAuction: endAuctionFn,
         restartAuction: restartAuctionFn,
+        submitLineup: submitLineupFn,
         leaveRoom,
         clearNotification,
       }}
