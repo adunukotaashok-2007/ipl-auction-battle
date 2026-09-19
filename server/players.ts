@@ -1,3 +1,4 @@
+// server/players.ts
 import { Player } from './types';
 
 export const PLAYERS_DATABASE: Player[] = [
@@ -129,3 +130,6 @@ export const PLAYERS_DATABASE: Player[] = [
   { id: 'p119', name: 'Ishant Sharma', photo: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e', role: 'Bowler', country: 'India', basePrice: 0.5, rating: 79, battingRating: 15, bowlingRating: 80 },
   { id: 'p120', name: 'Karn Sharma', photo: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e', role: 'Bowler', country: 'India', basePrice: 0.3, rating: 77, battingRating: 25, bowlingRating: 78 }
 ];
+
+// Alias export so roomManager import works smoothly
+export const playerDatabase = PLAYERS_DATABASE;
