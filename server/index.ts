@@ -17,6 +17,8 @@ import {
   getSocketMapping,
   getRoomPublicData,
   getTeamSkippedPlayers,
+  saveTeamLineup,
+  calculateRankings,
 } from './roomManager';
 
 import {
@@ -272,6 +274,58 @@ io.on('connection', (socket) => {
       restartAuction(mapping.roomCode, mapping.teamId, io);
     } catch (err) {
       console.error('[Error] restart-auction:', err);
+    }
+  });
+
+  // --- NEW: Handle Playing XI & Impact Player Submission ---
+  socket.on('submit-lineup', (data) => {
+    try {
+      const { playingXI, impactPlayerId } = data;
+      const mapping = getSocketMapping(socket.id);
+      if (!mapping) {
+        socket.emit('error', { message: 'Room or team not found' });
+        return;
+      }
+
+      // Validate submission
+      if (!Array.isArray(playingXI)) {
+        socket.emit('error', { message: 'Invalid lineup submission' });
+        return;
+      }
+
+      const room = getRoom(mapping.roomCode);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      const team = room.teams.find((t) => t.id === mapping.teamId);
+      if (!team) {
+        socket.emit('error', { message: 'Team not found' });
+        return;
+      }
+
+      // Save this team's lineup submission
+      saveTeamLineup(mapping.roomCode, mapping.teamId, playingXI, impactPlayerId);
+
+      // Notify everyone in the room
+      io.to(mapping.roomCode).emit('room-updated', getRoomPublicData(room));
+
+      // Check if all connected active teams have submitted their lineups
+      const activeTeams = room.teams.filter((t) => t.isConnected && t.squad.length > 0);
+      const allSubmitted = activeTeams.every((t) => t.lineupSubmitted);
+
+      if (allSubmitted && activeTeams.length > 0) {
+        const rankings = calculateRankings(mapping.roomCode);
+        room.rankings = rankings;
+        room.gameState = 'FINISHED';
+
+        io.to(mapping.roomCode).emit('room-updated', getRoomPublicData(room));
+        console.log(`[Rankings] Calculated for room ${mapping.roomCode}`);
+      }
+    } catch (err) {
+      console.error('[Error] submit-lineup:', err);
+      socket.emit('error', { message: 'Server error submitting lineup' });
     }
   });
 
