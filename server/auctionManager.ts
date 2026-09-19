@@ -204,6 +204,11 @@ export function skipPlayer(roomCode: string, teamId: string, io: Server): { succ
   const currentPlayer = room.auction.currentPlayer;
   if (!currentPlayer) return { success: false, error: 'No player in auction' };
 
+  // Skip only allowed before any bid is placed on this player
+  if (room.auction.highestBidderId !== null) {
+    return { success: false, error: 'Cannot skip after bidding has started' };
+  }
+
   // Check if already skipped
   if (team.skippedPlayers.includes(currentPlayer.id)) {
     return { success: false, error: 'Already skipped this player' };
@@ -223,24 +228,21 @@ export function skipPlayer(roomCode: string, teamId: string, io: Server): { succ
     socket.emit('your-skip-list', { skippedPlayers: team.skippedPlayers });
   }
 
-  // If this team was the highest bidder and they skip... shouldn't happen normally
-  // But if they somehow skip while being highest bidder, remove their bid
-  if (room.auction.highestBidderId === teamId) {
-    room.auction.highestBidderId = null;
-    room.auction.highestBidderName = null;
-    room.auction.currentBid = currentPlayer.basePrice;
-  }
-
   // Check if ALL eligible teams have now skipped
   let anyCanBid = false;
   for (const [, t] of room.teams) {
-    if (t.isConnected && t.squad.length < t.maxSquadSize && !t.skippedPlayers.includes(currentPlayer.id) && t.purse >= currentPlayer.basePrice) {
+    if (
+      t.isConnected &&
+      t.squad.length < t.maxSquadSize &&
+      !t.skippedPlayers.includes(currentPlayer.id) &&
+      t.purse >= currentPlayer.basePrice
+    ) {
       anyCanBid = true;
       break;
     }
   }
 
-  if (!anyCanBid && !room.auction.highestBidderId) {
+  if (!anyCanBid) {
     // Everyone skipped and no bid placed → UNSOLD
     clearAuctionTimer(roomCode);
     room.gameState = 'UNSOLD';
