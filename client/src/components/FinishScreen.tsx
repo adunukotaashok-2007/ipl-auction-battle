@@ -10,9 +10,12 @@ function FinishScreen() {
   // Local state for lineup building
   const [selectedXI, setSelectedXI] = useState<string[]>([]);
   const [impactPlayerId, setImpactPlayerId] = useState<string | null>(null);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [hasSubmittedLocal, setHasSubmittedLocal] = useState(false);
 
   if (!roomData) return null;
+
+  // Sync submission status with server data (resilient to page reload)
+  const isSubmitted = hasSubmittedLocal || myTeam?.lineupSubmitted || false;
 
   const mySquad = myTeam?.squad || [];
   const totalSquadCount = mySquad.length;
@@ -71,7 +74,7 @@ function FinishScreen() {
     }
 
     submitLineup(selectedXI, impactPlayerId);
-    setHasSubmitted(true);
+    setHasSubmittedLocal(true);
   };
 
   const getMedal = (rank: number) => {
@@ -97,12 +100,12 @@ function FinishScreen() {
       </div>
 
       {/* PHASE 1: LINEUP SELECTION */}
-      {!hasRankings && !hasSubmitted && (
+      {!hasRankings && !isSubmitted && (
         <div className="lineup-selection-box">
           <h2>🏏 Build Your Match Squad ({myTeam?.teamName})</h2>
           <div className="lineup-stats">
-            <span className={`stat-badge ${selectedXI.length === 11 ? 'valid' : ''}`}>
-              Playing XI: {selectedXI.length}/11
+            <span className={`stat-badge ${selectedXI.length === Math.min(11, totalSquadCount) ? 'valid' : ''}`}>
+              Playing XI: {selectedXI.length}/{Math.min(11, totalSquadCount)}
             </span>
             <span className={`stat-badge ${selectedOverseasCount <= 4 ? 'valid' : 'invalid'}`}>
               Overseas in XI: {selectedOverseasCount}/4
@@ -160,7 +163,7 @@ function FinishScreen() {
       )}
 
       {/* PHASE 2: WAITING FOR OTHERS */}
-      {!hasRankings && hasSubmitted && (
+      {!hasRankings && isSubmitted && (
         <div className="waiting-box">
           <h2>⏳ Lineup Submitted!</h2>
           <p>Waiting for remaining teams to submit their lineups...</p>
