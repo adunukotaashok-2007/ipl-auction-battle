@@ -65,9 +65,55 @@ export interface TeamRanking {
   errorMessage?: string;
 }
 
-export interface TeamData {
+export interface RoomSettings {
+  initialPurse: number;
+  maxSquadSize: number;
+  bidIncrement: number;
+  auctionTimerSeconds: number;
+  maxPlayers: number;
+}
+
+// ----------------------------------------------------
+// INTERNAL SERVER TYPES (Used in mapping & game logic)
+// ----------------------------------------------------
+export interface TeamInfo {
   id: string;
   socketId: string;
+  playerName: string;
+  teamName: string;
+  teamShortName: string;
+  teamColor: string;
+  teamLogo: string;
+  purse: number;
+  initialPurse: number;
+  squad: PurchasedPlayer[];
+  skippedPlayers: string[]; // Array of IDs
+  isReady: boolean;
+  isConnected: boolean;
+  isHost: boolean;
+  maxSquadSize: number;
+  lineupSubmitted?: boolean;
+  lineup?: TeamLineup;
+}
+
+export interface Room {
+  code: string;
+  hostId: string;
+  teams: Map<string, TeamInfo>;
+  gameState: GameState;
+  auction: AuctionState;
+  playerPool: Player[];
+  auctionOrder: string[];
+  createdAt: number;
+  settings: RoomSettings;
+  rankings?: TeamRanking[];
+}
+
+// ----------------------------------------------------
+// PUBLIC TYPES (Data safely sent to the clients)
+// ----------------------------------------------------
+export interface TeamPublicData {
+  id: string;
   playerName: string;
   teamName: string;
   teamShortName: string;
@@ -83,21 +129,14 @@ export interface TeamData {
   squadSize: number;
   maxSquadSize: number;
   lineupSubmitted?: boolean;
-  lineup?: TeamLineup;
 }
 
-export interface RoomData {
+export interface RoomPublicData {
   code: string;
   hostId: string;
-  teams: TeamData[];
+  teams: TeamPublicData[];
   gameState: GameState;
   auction: AuctionState;
   rankings?: TeamRanking[];
-  settings: {
-    initialPurse: number;
-    maxSquadSize: number;
-    bidIncrement: number;
-    auctionTimerSeconds: number;
-    maxPlayers: number;
-  };
+  settings: RoomSettings;
 }
