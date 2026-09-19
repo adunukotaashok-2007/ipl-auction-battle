@@ -36,6 +36,10 @@ function BidControls() {
   const isHighestBidder =
     auction.highestBidderId === myTeamId;
 
+  // Skip is only allowed before the first bid on this player
+  const hasBiddingStarted =
+    auction.highestBidderId !== null;
+
   const nextBid = auction.highestBidderId
     ? Math.round(
         (auction.currentBid + auction.bidIncrement) * 100
@@ -55,6 +59,11 @@ function BidControls() {
     canAfford &&
     !isSquadFull &&
     !isPaused;
+
+  const canSkip =
+    !hasBiddingStarted &&
+    !hasSkipped &&
+    (isAuctionActive || roomData.gameState === 'PLAYER_REVEAL');
 
   return (
     <div className="bid-controls">
@@ -163,16 +172,15 @@ function BidControls() {
 
           </button>
 
-          <button
-            className="btn-skip"
-            onClick={skipPlayer}
-            disabled={
-              !isAuctionActive &&
-              roomData.gameState !== 'PLAYER_REVEAL'
-            }
-          >
-            ⏭️ SKIP
-          </button>
+          {/* Skip only visible before any bid is placed */}
+          {canSkip && (
+            <button
+              className="btn-skip"
+              onClick={skipPlayer}
+            >
+              ⏭️ SKIP
+            </button>
+          )}
 
         </div>
 
