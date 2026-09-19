@@ -1,4 +1,3 @@
-// client/src/types.ts
 export interface Player {
   id: string;
   name: string;
@@ -16,6 +15,7 @@ export interface PurchasedPlayer {
   purchasePrice: number;
 }
 
+// Updated GameState to include LINEUP_SELECTION phase
 export type GameState =
   | 'LOBBY'
   | 'PLAYER_REVEAL'
@@ -24,6 +24,7 @@ export type GameState =
   | 'UNSOLD'
   | 'NEXT_PLAYER'
   | 'PAUSED'
+  | 'LINEUP_SELECTION'
   | 'FINISHED';
 
 export interface AuctionState {
@@ -43,6 +44,28 @@ export interface AuctionState {
   isPaused: boolean;
 }
 
+// Lineup submitted by each player
+export interface TeamLineup {
+  teamId: string;
+  playingXI: string[]; // 11 Player IDs
+  impactPlayerId: string | null; // 1 Player ID
+  submitted: boolean;
+}
+
+// Final calculated rankings after auction
+export interface TeamRanking {
+  teamId: string;
+  teamName: string;
+  teamShortName: string;
+  teamColor: string;
+  score: number;
+  rank: number;
+  playingXI: Player[];
+  impactPlayer: Player | null;
+  isValidLineup: boolean;
+  errorMessage?: string;
+}
+
 export interface TeamPublicData {
   id: string;
   playerName: string;
@@ -59,6 +82,7 @@ export interface TeamPublicData {
   isHost: boolean;
   squadSize: number;
   maxSquadSize: number;
+  lineupSubmitted?: boolean;
 }
 
 export interface RoomPublicData {
@@ -67,6 +91,7 @@ export interface RoomPublicData {
   gameState: GameState;
   auction: AuctionState;
   hostId: string;
+  rankings?: TeamRanking[];
   settings: {
     initialPurse: number;
     maxSquadSize: number;
