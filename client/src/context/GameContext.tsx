@@ -1,98 +1,202 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { socket } from '../socket';
-import { RoomPublicData, GameState, LiveMatchState, DeliveryInput, ShotInput } from '../types';
+import { 
+  RoomState, 
+  Player, 
+  PurchasedPlayer, 
+  DeliveryInput, 
+  ShotInput, 
+  LiveMatchState 
+} from '../types';
 
 interface GameContextType {
-  roomState: RoomPublicData | null;
+  roomState: RoomState | null;
   matchState: LiveMatchState | null;
   currentTeamId: string | null;
+  isConnected: boolean;
   error: string | null;
-  clearError: () => void;
+  createRoom: (userName: string) => void;
+  joinRoom: (roomCode: string, userName: string) => void;
+  toggleReady: () => void;
+  startAuction: () => void;
+  placeBid: (amount: number) => void;
+  skipPlayer: () => void;
+  pauseAuction: () => void;
+  resumeAuction: () => void;
+  nextPlayer: () => void;
+  restartAuction: () => void;
+  submitLineup: (playerIds: string[]) => void;
   startMatch: (overs?: number) => void;
   submitDelivery: (delivery: DeliveryInput) => void;
   submitShot: (shot: ShotInput) => void;
+  clearError: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [roomState, setRoomState] = useState<RoomPublicData | null>(null);
+export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [matchState, setMatchState] = useState<LiveMatchState | null>(null);
   const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(socket.connected);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    socket.on('room-updated', (data: RoomPublicData) => {
-      setRoomState(data);
-    });
+    function onConnect() {
+      setIsConnected(true);
+      // Attempt to rejoin if we have existing state
+      const savedRoomCode = roomState?.code;
+      const savedTeamId = currentTeamId;
+      if (savedRoomCode && savedTeamId) {
+        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: savedTeamId });
+      }
+    }
 
-    socket.on('room-joined', (data: { teamId: string }) => {
+    function onDisconnect() {
+      setIsConnected(false);
+    }
+
+    function onRoomCreated(data: { roomState: RoomState; teamId: string }) {
+      setRoomState(data.roomState);
       setCurrentTeamId(data.teamId);
-    });
+      setError(null);
+    }
 
-    socket.on('room-created', (data: { teamId: string }) => {
+    function onRoomJoined(data: { roomState: RoomState; teamId: string; matchState?: LiveMatchState }) {
+      setRoomState(data.roomState);
       setCurrentTeamId(data.teamId);
-    });
+      if (data.matchState) setMatchState(data.matchState);
+      setError(null);
+    }
 
-    socket.on('reconnected', (data: { teamId: string }) => {
+    function onRoomUpdated(state: RoomState) {
+      setRoomState(state);
+    }
+
+    function onMatchUpdated(state: LiveMatchState) {
+      setMatchState(state);
+    }
+
+    function onReconnected(data: { roomState: RoomState; teamId: string; matchState?: LiveMatchState }) {
+      setRoomState(data.roomState);
       setCurrentTeamId(data.teamId);
-    });
+      if (data.matchState) setMatchState(data.matchState);
+    }
 
-    socket.on('match-updated', (match: LiveMatchState) => {
-      setMatchState(match);
-    });
+    function onError(message: string) {
+      setError(message);
+      // Clear error after 5 seconds
+      setTimeout(() => setError(null), 5000);
+    }
 
-    socket.on('error', (payload: { message: string }) => {
-      console.error('[Server Error]', payload.message);
-      setError(payload.message);
-    });
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('room-created', onRoomCreated);
+    socket.on('room-joined', onRoomJoined);
+    socket.on('room-updated', onRoomUpdated);
+    socket.on('match-updated', onMatchUpdated);
+    socket.on('reconnected', onReconnected);
+    socket.on('error', onError);
 
     return () => {
-      socket.off('room-updated');
-      socket.off('room-joined');
-      socket.off('room-created');
-      socket.off('reconnected');
-      socket.off('match-updated');
-      socket.off('error');
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('room-created', onRoomCreated);
+      socket.off('room-joined', onRoomJoined);
+      socket.off('room-updated', onRoomUpdated);
+      socket.off('match-updated', onMatchUpdated);
+      socket.off('reconnected', onReconnected);
+      socket.off('error', onError);
     };
-  }, []);
+  }, [roomState?.code, currentTeamId]);
 
-  const clearError = useCallback(() => setError(null), []);
+  const createRoom = (userName: string) => {
+    socket.emit('create-room', { userName });
+  };
 
-  // NEW: Accept overs parameter (defaults to 2)
-  const startMatch = useCallback((overs: number = 2) => {
+  const joinRoom = (roomCode: string, userName: string) => {
+    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), userName });
+  };
+
+  const toggleReady = () => {
+    socket.emit('toggle-ready');
+  };
+
+  const startAuction = () => {
+    socket.emit('start-auction');
+  };
+
+  const placeBid = (amount: number) => {
+    socket.emit('place-bid', { amount });
+  };
+
+  const skipPlayer = () => {
+    socket.emit('skip-player');
+  };
+
+  const pauseAuction = () => {
+    socket.emit('pause-auction');
+  };
+
+  const resumeAuction = () => {
+    socket.emit('resume-auction');
+  };
+
+  const nextPlayer = () => {
+    socket.emit('next-player');
+  };
+
+  const restartAuction = () => {
+    socket.emit('restart-auction');
+  };
+
+  const submitLineup = (playerIds: string[]) => {
+    socket.emit('submit-lineup', { playerIds });
+  };
+
+  const startMatch = (overs: number = 2) => {
     socket.emit('start-match', { overs });
-  }, []);
+  };
 
-  const submitDelivery = useCallback((delivery: DeliveryInput) => {
+  const submitDelivery = (delivery: DeliveryInput) => {
     socket.emit('submit-delivery', delivery);
-  }, []);
+  };
 
-  const submitShot = useCallback((shot: ShotInput) => {
+  const submitShot = (shot: ShotInput) => {
     socket.emit('submit-shot', shot);
-  }, []);
+  };
 
-  return (
-    <GameContext.Provider
-      value={{
-        roomState,
-        matchState,
-        currentTeamId,
-        error,
-        clearError,
-        startMatch,
-        submitDelivery,
-        submitShot,
-      }}
-    >
-      {children}
-    </GameContext.Provider>
-  );
+  const clearError = () => setError(null);
+
+  const value = {
+    roomState,
+    matchState,
+    currentTeamId,
+    isConnected,
+    error,
+    createRoom,
+    joinRoom,
+    toggleReady,
+    startAuction,
+    placeBid,
+    skipPlayer,
+    pauseAuction,
+    resumeAuction,
+    nextPlayer,
+    restartAuction,
+    submitLineup,
+    startMatch,
+    submitDelivery,
+    submitShot,
+    clearError,
+  };
+
+  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 };
 
 export const useGame = () => {
   const context = useContext(GameContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useGame must be used within a GameProvider');
   }
   return context;
