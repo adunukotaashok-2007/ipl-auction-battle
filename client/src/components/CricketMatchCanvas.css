@@ -1,0 +1,84 @@
+/* client/src/components/CricketMatchCanvas.css */
+.cricket-match-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #0f172a;
+  border-radius: 16px;
+  padding: 16px;
+  color: #fff;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+.match-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 16px;
+  background: #1e293b;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.hud-team { display: flex; align-items: center; gap: 8px; }
+.team-badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; color: #fff; }
+.team-name { font-weight: 700; font-size: 14px; }
+.player-highlight { font-size: 12px; color: #94a3b8; }
+.phase-pill { background: #334155; color: #38bdf8; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.cricket-canvas {
+  border-radius: 12px;
+  border: 2px solid #334155;
+  background: #000;
+  max-width: 100%;
+}
+
+.timing-meter-overlay, .bowling-tactics-overlay {
+  position: absolute;
+  bottom: 16px;
+  width: 90%;
+  background: rgba(15, 23, 42, 0.94);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #334155;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+.meter-label { font-size: 12px; font-weight: 800; color: #facc15; margin-bottom: 8px; }
+.meter-track { position: relative; width: 100%; height: 20px; background: #334155; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.sweet-zone { position: absolute; height: 100%; background: rgba(34, 197, 94, 0.7); border-left: 2px solid #22c55e; border-right: 2px solid #22c55e; }
+.meter-needle { position: absolute; width: 6px; height: 100%; background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
+.shot-controls-inline { display: flex; flex-direction: column; gap: 8px; }
+.control-group { display: flex; justify-content: center; gap: 8px; }
+.btn-toggle { background: #1e293b; color: #94a3b8; border: 1px solid #475569; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12px; }
+.btn-toggle.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+.btn-hit-swing {
+  background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 16px; font-weight: 900;
+  padding: 10px 24px; border-radius: 30px; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+}
+.btn-hit-swing:active { transform: scale(0.96); }
+
+.bowling-tactics-overlay h4 { margin: 0 0 12px 0; font-size: 14px; color: #38bdf8; }
+.tactics-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+.tactics-row button { background: #1e293b; color: #cbd5e1; border: 1px solid #475569; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
+.tactics-row button.active { background: #dc2626; color: #fff; border-color: #f87171; }
+.btn-deliver-ball { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; font-size: 16px; font-weight: 900; padding: 10px 24px; border-radius: 30px; border: none; cursor: pointer; margin-top: 6px; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4); }
+
+.outcome-banner { margin-top: 12px; width: 100%; padding: 12px; border-radius: 10px; text-align: center; }
+.outcome-banner.runs { background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; }
+.outcome-banner.wicket { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #f87171; }
+.outcome-title { font-size: 18px; font-weight: 900; }
+.commentary-text { font-size: 13px; margin-top: 4px; color: #cbd5e1; }
