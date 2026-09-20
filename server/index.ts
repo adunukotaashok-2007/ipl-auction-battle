@@ -34,6 +34,14 @@ import {
   moveToNextPlayer,
 } from './auctionManager';
 
+import {
+  initializeMatch,
+  calculateBallOutcome,
+  applyBallResult,
+} from './matchEngine';
+
+import { LiveMatchState } from './types';
+
 dotenv.config();
 
 const app = express();
@@ -41,6 +49,12 @@ const httpServer = createServer(app);
 
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 const port = parseInt(process.env.PORT || '3001', 10);
+
+// --------------------------------------------------
+// Live Matches Storage
+// --------------------------------------------------
+
+const liveMatches = new Map<string, LiveMatchState>();
 
 // --------------------------------------------------
 // Middleware
@@ -278,8 +292,169 @@ io.on('connection', (socket) => {
         );
 
         socket.emit('your-skip-list', {
+          teamLogo || '🏏'
+      );
+
+      if (!result) {
+        socket.emit('error', {
+          message: 'Failed to create room',
+        });
+
+        return;
+      }
+
+      socket.join(result.roomCode);
+
+      socket.emit('room-created', {
+        roomCode: result.roomCode,
+        teamId: result.teamId,
+      });
+
+      const room = getRoom(result.roomCode);
+
+      if (room) {
+        io.to(result.roomCode).emit(
+          'room-updated',
+          getRoomPublicData(room)
+        );
+      }
+
+      console.log(
+        `[Room] Created: ${result.roomCode} by ${teamName}`
+      );
+    } catch (err) {
+      console.error('[Error] create-room:', err);
+
+      socket.emit('error', {
+        message: 'Server error creating room',
+      });
+    }
+  });
+
+  // ==================================================
+  // JOIN ROOM
+  // ==================================================
+
+  socket.on('join-room', (data) => {
+    try {
+      const {
+        roomCode,
+        playerName,
+        teamName,
+        teamShortName,
+        teamColor,
+        teamLogo,
+      } = data;
+
+      if (!roomCode || !playerName || !teamName) {
+        socket.emit('error', {
+          message:
+            'Room code, player name, and team name are required',
+        });
+
+        return;
+      }
+
+      const normalizedRoomCode = roomCode.toUpperCase();
+
+      const result = joinRoom(
+        socket.id,
+        normalizedRoomCode,
+        playerName,
+        teamName,
+        teamShortName ||
+          teamName.substring(0, 3).toUpperCase(),
+        teamColor || '#4CAF50',
+        teamLogo || '🏏'
+      );
+
+      if (result.error) {
+        socket.emit('error', {
+          message: result.error,
+        });
+
+        return;
+      }
+
+      socket.join(normalizedRoomCode);
+
+      socket.emit('room-joined', {
+        teamId: result.teamId,
+      });
+
+      const room = getRoom(normalizedRoomCode);
+
+      if (room) {
+        io.to(normalizedRoomCode).emit(
+          'room-updated',
+          getRoomPublicData(room)
+        );
+      }
+
+      console.log(
+        `[Room] ${teamName} joined ${normalizedRoomCode}`
+      );
+    } catch (err) {
+      console.error('[Error] join-room:', err);
+
+      socket.emit('error', {
+        message: 'Server error joining room',
+      });
+    }
+  });
+
+  // ==================================================
+  // REJOIN ROOM
+  // ==================================================
+
+  socket.on('rejoin-room', (data) => {
+    try {
+      const { roomCode, teamId } = data;
+
+      const result = rejoinRoom(
+        socket.id,
+        roomCode,
+        teamId
+      );
+
+      if (!result.success) {
+        socket.emit('error', {
+          message:
+            result.error || 'Failed to rejoin',
+        });
+
+        return;
+      }
+
+      socket.join(roomCode);
+
+      socket.emit('reconnected', {
+        teamId,
+      });
+
+      const room = getRoom(roomCode);
+
+      if (room) {
+        io.to(roomCode).emit(
+          'room-updated',
+          getRoomPublicData(room)
+        );
+
+        // Send skip list
+        const skipped = getTeamSkippedPlayers(
+          roomCode,
+          teamId
+        );
+
+        socket.emit('your-skip-list', {
           skippedPlayers: skipped,
         });
+
+        // If a live match is running, also send current match state
+        const match = liveMatches.get(roomCode);
+        if (match) {
+          socket.emit('match-updated', match);
+        }
       }
 
       console.log(
@@ -544,6 +719,9 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Clear any live match for this room too
+      liveMatches.delete(mapping.roomCode);
+
       restartAuction(
         mapping.roomCode,
         mapping.teamId,
@@ -662,7 +840,11 @@ io.on('connection', (socket) => {
           );
 
         room.rankings = rankings;
-        room.gameState = 'FINISHED';
+
+        // NOTE:
+        // We DO NOT force FINISHED anymore here.
+        // The host will now decide when to start the match.
+        // Rankings are still stored so we can rank teams later.
 
         io.to(mapping.roomCode).emit(
           'room-updated',
@@ -682,6 +864,215 @@ io.on('connection', (socket) => {
       socket.emit('error', {
         message:
           'Server error submitting lineup',
+      });
+    }
+  });
+
+  // ==================================================
+  // START REALISTIC MATCH (Host only)
+  // Triggered after all teams have submitted lineups
+  // ==================================================
+
+  socket.on('start-match', () => {
+    try {
+      const mapping = getSocketMapping(socket.id);
+      if (!mapping) return;
+
+      const room = getRoom(mapping.roomCode);
+      if (!room) return;
+
+      // Only host can start the match
+      if (room.hostId !== mapping.teamId) {
+        socket.emit('error', {
+          message: 'Only the host can start the match',
+        });
+        return;
+      }
+
+      const teams = Array.from(room.teams.values()).filter(
+        (t) => t.isConnected && t.squad.length > 0
+      );
+
+      if (teams.length < 2) {
+        socket.emit('error', {
+          message: 'Need at least 2 teams with squads to start the match',
+        });
+        return;
+      }
+
+      const t1 = teams[0];
+      const t2 = teams[1];
+
+      if (!t1.lineup || !t2.lineup) {
+        socket.emit('error', {
+          message: 'Both teams must submit their Playing XI first',
+        });
+        return;
+      }
+
+      // Initialize match — 2 overs per side for a quick game
+      const matchState = initializeMatch(
+        mapping.roomCode,
+        t1.id,
+        t1.lineup,
+        t2.id,
+        t2.lineup,
+        2
+      );
+
+      liveMatches.set(mapping.roomCode, matchState);
+
+      room.gameState = 'MATCH_PLAYING';
+
+      io.to(mapping.roomCode).emit(
+        'room-updated',
+        getRoomPublicData(room)
+      );
+
+      io.to(mapping.roomCode).emit(
+        'match-updated',
+        matchState
+      );
+
+      console.log(
+        `[Match] Started in room ${mapping.roomCode}`
+      );
+    } catch (err) {
+      console.error('[Error] start-match:', err);
+      socket.emit('error', {
+        message: 'Server error starting match',
+      });
+    }
+  });
+
+  // ==================================================
+  // BOWLER SUBMITS DELIVERY (Pitch target + speed)
+  // ==================================================
+
+  socket.on('submit-delivery', (delivery) => {
+    try {
+      const mapping = getSocketMapping(socket.id);
+      if (!mapping) return;
+
+      const match = liveMatches.get(mapping.roomCode);
+      if (!match) return;
+
+      // Only allow when awaiting a delivery
+      if (match.phase !== 'AWAITING_DELIVERY') return;
+
+      // Determine which team is bowling now
+      const inn =
+        match.currentInnings === 1
+          ? match.innings1
+          : match.innings2;
+      if (!inn) return;
+
+      // Only bowling team members can submit a delivery
+      if (mapping.teamId !== inn.bowlingTeamId) {
+        socket.emit('error', {
+          message: 'You are not the bowling team right now',
+        });
+        return;
+      }
+
+      match.pendingDelivery = delivery;
+      match.phase = 'BALL_IN_FLIGHT';
+
+      io.to(mapping.roomCode).emit('match-updated', match);
+    } catch (err) {
+      console.error('[Error] submit-delivery:', err);
+      socket.emit('error', {
+        message: 'Server error submitting delivery',
+      });
+    }
+  });
+
+  // ==================================================
+  // BATTER SUBMITS SHOT (Direction + shot type + timing)
+  // ==================================================
+
+  socket.on('submit-shot', (shot) => {
+    try {
+      const mapping = getSocketMapping(socket.id);
+      if (!mapping) return;
+
+      const match = liveMatches.get(mapping.roomCode);
+      if (!match || !match.pendingDelivery) return;
+
+      // Only allow when ball is in flight
+      if (match.phase !== 'BALL_IN_FLIGHT') return;
+
+      const inn =
+        match.currentInnings === 1
+          ? match.innings1
+          : match.innings2;
+      if (!inn) return;
+
+      // Only batting team members can submit a shot
+      if (mapping.teamId !== inn.battingTeamId) {
+        socket.emit('error', {
+          message: 'You are not the batting team right now',
+        });
+        return;
+      }
+
+      const striker = inn.battingLineup.find(
+        (p: any) => p.id === inn.strikerId
+      );
+      const bowler = inn.bowlingLineup.find(
+        (p: any) => p.id === inn.currentBowlerId
+      );
+
+      if (!striker || !bowler) return;
+
+      // Calculate ball outcome from physics engine
+      const outcome = calculateBallOutcome(
+        match.pendingDelivery,
+        shot,
+        striker,
+        bowler
+      );
+
+      match.lastOutcome = outcome;
+      match.pendingDelivery = undefined;
+      match.phase = 'RESULT_SHOWCASE';
+
+      // Apply outcome and update innings state
+      const updatedMatch = applyBallResult(match, outcome);
+
+      io.to(mapping.roomCode).emit(
+        'match-updated',
+        updatedMatch
+      );
+
+      // After 4 seconds, move to next ball automatically
+      setTimeout(() => {
+        const currentMatch = liveMatches.get(mapping.roomCode);
+        if (!currentMatch) return;
+
+        if (currentMatch.phase === 'MATCH_OVER') {
+          // Match is done — update the room state to FINISHED
+          const room = getRoom(mapping.roomCode);
+          if (room) {
+            room.gameState = 'FINISHED';
+            io.to(mapping.roomCode).emit(
+              'room-updated',
+              getRoomPublicData(room)
+            );
+          }
+          return;
+        }
+
+        currentMatch.phase = 'AWAITING_DELIVERY';
+        io.to(mapping.roomCode).emit(
+          'match-updated',
+          currentMatch
+        );
+      }, 4000);
+    } catch (err) {
+      console.error('[Error] submit-shot:', err);
+      socket.emit('error', {
+        message: 'Server error submitting shot',
       });
     }
   });
