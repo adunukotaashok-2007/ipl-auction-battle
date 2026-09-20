@@ -5,7 +5,16 @@ import { PurchasedPlayer } from '../types';
 import './FinishScreen.css';
 
 function FinishScreen() {
-  const { roomData, myTeamId, myTeam, isHost, restartAuction, leaveRoom, submitLineup } = useGame();
+  const {
+    roomData,
+    myTeamId,
+    myTeam,
+    isHost,
+    restartAuction,
+    leaveRoom,
+    submitLineup,
+    startMatch,
+  } = useGame();
 
   // Local state for lineup building
   const [selectedXI, setSelectedXI] = useState<string[]>([]);
@@ -89,18 +98,23 @@ function FinishScreen() {
   // Display Leaderboard if rankings are available
   const hasRankings = roomData.rankings && roomData.rankings.length > 0;
 
+  // Check if all connected teams with squads have submitted lineups
+  const allTeamsSubmitted = roomData.teams
+    .filter((t) => t.isConnected && t.squadSize > 0)
+    .every((t) => t.lineupSubmitted);
+
   return (
     <div className="finish-screen">
       <div className="finish-header">
         <div className="trophy-icon">🏆</div>
         <h1 className="finish-title">AUCTION COMPLETE</h1>
         <p className="finish-subtitle">
-          {hasRankings ? 'Final Team Rankings' : 'Select your Playing XI & Impact Player'}
+          {hasRankings ? 'Team Rankings & Playing XIs' : 'Select your Playing XI & Impact Player'}
         </p>
       </div>
 
       {/* PHASE 1: LINEUP SELECTION */}
-      {!hasRankings && !isSubmitted && (
+      {!isSubmitted && (
         <div className="lineup-selection-box">
           <h2>🏏 Build Your Match Squad ({myTeam?.teamName})</h2>
           <div className="lineup-stats">
@@ -163,14 +177,36 @@ function FinishScreen() {
       )}
 
       {/* PHASE 2: WAITING FOR OTHERS */}
-      {!hasRankings && isSubmitted && (
+      {isSubmitted && !allTeamsSubmitted && (
         <div className="waiting-box">
           <h2>⏳ Lineup Submitted!</h2>
           <p>Waiting for remaining teams to submit their lineups...</p>
         </div>
       )}
 
-      {/* PHASE 3: FINAL LEADERBOARD */}
+      {/* PHASE 3: START REALISTIC MATCH BUTTON (Host Only) */}
+      {isSubmitted && allTeamsSubmitted && isHost && (
+        <div className="start-match-box">
+          <h2>🎉 All Lineups Submitted!</h2>
+          <p>You are the Host. Start the live cricket match now!</p>
+          <button
+            className="btn-start-match"
+            onClick={startMatch}
+          >
+            🏏 START REALISTIC MATCH (2 Overs)
+          </button>
+        </div>
+      )}
+
+      {/* PHASE 3B: NON-HOST WAITING FOR MATCH TO START */}
+      {isSubmitted && allTeamsSubmitted && !isHost && !hasRankings && (
+        <div className="waiting-box">
+          <h2>⏳ Waiting for Host</h2>
+          <p>The host will start the live cricket match shortly...</p>
+        </div>
+      )}
+
+      {/* PHASE 4: FINAL LEADERBOARD (After match ends OR rankings calculated) */}
       {hasRankings && (
         <div className="finish-teams">
           {roomData.rankings?.map((team) => (
