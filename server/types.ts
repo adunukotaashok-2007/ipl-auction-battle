@@ -120,6 +120,15 @@ export interface ShotInput {
   timing: number;
 }
 
+// -------------- NEW: Extras tracking --------------
+export interface Extras {
+  wides: number;
+  noBalls: number;
+  byes: number;
+  legByes: number;
+  total: number;
+}
+
 export interface BallOutcome {
   runs: number;
   isWicket: boolean;
@@ -130,7 +139,11 @@ export interface BallOutcome {
     | 'STUMPED'
     | 'RUN OUT';
   isExtra: boolean;
-  extraType?: 'WIDE' | 'NO_BALL';
+  extraType?: 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
+  isNoBall?: boolean;
+  isWide?: boolean;
+  isBye?: boolean;
+  isLegBye?: boolean;
   commentary: string;
   shotQuality:
     | 'PERFECT'
@@ -158,9 +171,6 @@ export interface BallRecord {
 
 // ----------------------------------------------------
 // OVER SUMMARY
-//
-// This is separate from BallRecord because an over
-// summary does NOT contain complete ball information.
 // ----------------------------------------------------
 
 export interface OverSummary {
@@ -193,10 +203,13 @@ export interface InningsState {
 
   nextBatterIndex: number;
 
-  // Each item represents a completed over.
   oversHistory: OverSummary[];
 
   isCompleted: boolean;
+
+  // -------------- NEW: Extras + Free Hit --------------
+  extras: Extras;
+  isFreeHitActive: boolean;
 }
 
 // ----------------------------------------------------
