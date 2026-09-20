@@ -1,18 +1,61 @@
-import { Player, TeamLineup, LiveMatchState, InningsState, DeliveryInput, ShotInput, BallOutcome } from './types';
+import {
+  Player,
+  PurchasedPlayer,
+  TeamLineup,
+  LiveMatchState,
+  InningsState,
+  DeliveryInput,
+  ShotInput,
+  BallOutcome,
+} from './types';
+
+/** Helper: Resolves lineup IDs into full Player objects from a team's squad */
+function resolveLineupPlayers(
+  lineup: TeamLineup,
+  squad: PurchasedPlayer[]
+): Player[] {
+  const byId = new Map(squad.map((s) => [s.player.id, s.player]));
+  const xi: Player[] = [];
+
+  // Add all Playing XI players
+  for (const id of lineup.playingXI) {
+    const p = byId.get(id);
+    if (p) xi.push(p);
+  }
+
+  // Add Impact Player to the match pool if not already in XI
+  if (lineup.impactPlayerId) {
+    const impact = byId.get(lineup.impactPlayerId);
+    if (impact && !xi.find((p) => p.id === impact.id)) {
+      xi.push(impact);
+    }
+  }
+
+  // Safety fallback: if XI is completely empty for some reason, use full squad
+  if (xi.length === 0) {
+    return squad.map((s) => s.player);
+  }
+
+  return xi;
+}
 
 export function initializeMatch(
   roomCode: string,
   team1Id: string,
   team1Lineup: TeamLineup,
+  team1Squad: PurchasedPlayer[],
   team2Id: string,
   team2Lineup: TeamLineup,
+  team2Squad: PurchasedPlayer[],
   totalOvers: number = 2 // 2-over quick match for testing
 ): LiveMatchState {
-  const team1Players = [...team1Lineup.playingXI];
-  if (team1Lineup.impactPlayer) team1Players.push(team1Lineup.impactPlayer);
+  const team1Players = resolveLineupPlayers(team1Lineup, team1Squad);
+  const team2Players = resolveLineupPlayers(team2Lineup, team2Squad);
 
-  const team2Players = [...team2Lineup.playingXI];
-  if (team2Lineup.impactPlayer) team2Players.push(team2Lineup.impactPlayer);
+  // Need at least 2 players to start a match
+  if (team1Players.length < 2 || team2Players.length < 2) {
+    throw new Error('Both teams must have at least 2 players to play the match.');
+  }
 
   const inn1: InningsState = {
     battingTeamId: team1Id,
@@ -46,7 +89,9 @@ export function selectBestBowler(bowlingSquad: Player[], previousBowlerIds: stri
   const lastBowler = previousBowlerIds[previousBowlerIds.length - 1];
   const available = (eligible.length > 0 ? eligible : bowlingSquad).filter(p => p.id !== lastBowler);
   
+  // Sort descending by bowling rating
   available.sort((a, b) => (b.bowlingRating || 50) - (a.bowlingRating || 50));
+  
   return available[0]?.id || bowlingSquad[0].id;
 }
 
@@ -58,7 +103,9 @@ export function calculateBallOutcome(
 ): BallOutcome {
   const batRating = batter.battingRating || 50;
   const bowlRating = bowler.bowlingRating || 50;
-  const statRatio = batRating / bowlRating;
+  
+  // Avoid division by zero
+  const statRatio = batRating / Math.max(bowlRating, 1);
   
   const timing = Math.max(0, Math.min(1, shot.timing));
 
@@ -100,7 +147,14 @@ export function calculateBallOutcome(
     const wicketChance = (0.3 / statRatio) * (lineMatch ? 0.6 : 1.2);
     if (Math.random() < wicketChance) {
       const wType = delivery.zone === 'YORKER' ? 'BOWLED' : 'CAUGHT';
-      return { runs: 0, isWicket: true, wicketType: wType, isExtra: false, shotQuality, commentary: wType === 'BOWLED' ? `🎯 CLEAN BOWLED! ${bowler.name} destroys the stumps!` : `✋ CAUGHT! ${batter.name} gets a leading edge!` };
+      return { 
+        runs: 0, 
+        isWicket: true, 
+        wicketType: wType as any, 
+        isExtra: false, 
+        shotQuality, 
+        commentary: wType === 'BOWLED' ? `🎯 CLEAN BOWLED! ${bowler.name} destroys the stumps!` : `✋ CAUGHT! ${batter.name} gets a leading edge!` 
+      };
     }
     const runs = Math.random() < 0.4 ? 1 : 0;
     return { runs, isWicket: false, isExtra: false, shotQuality, commentary: runs === 1 ? `😅 Scrambled single by ${batter.name}.` : `🛡️ Dot ball by ${bowler.name}.` };
@@ -121,6 +175,7 @@ export function applyBallResult(match: LiveMatchState, outcome: BallOutcome): Li
   inn.legalBalls += 1;
   inn.overs = Math.floor(inn.legalBalls / 6) + (inn.legalBalls % 6) / 10;
 
+  // Handle Wicket
   if (outcome.isWicket) {
     inn.wickets += 1;
     if (inn.wickets < 10 && inn.nextBatterIndex < inn.battingLineup.length) {
@@ -128,9 +183,11 @@ export function applyBallResult(match: LiveMatchState, outcome: BallOutcome): Li
       inn.nextBatterIndex += 1;
     }
   } else if (outcome.runs % 2 !== 0) {
+    // Strike rotation on odd runs
     [inn.strikerId, inn.nonStrikerId] = [inn.nonStrikerId, inn.strikerId];
   }
 
+  // End of over logic
   if (inn.legalBalls % 6 === 0) {
     [inn.strikerId, inn.nonStrikerId] = [inn.nonStrikerId, inn.strikerId];
     inn.currentBowlerId = selectBestBowler(inn.bowlingLineup, inn.oversHistory.map(b => b.bowlerId));
@@ -138,6 +195,7 @@ export function applyBallResult(match: LiveMatchState, outcome: BallOutcome): Li
 
   const target = match.currentInnings === 2 ? match.innings1.totalRuns + 1 : null;
 
+  // Chasing team wins
   if (target && inn.totalRuns >= target) {
     inn.isCompleted = true;
     match.phase = 'MATCH_OVER';
@@ -146,9 +204,12 @@ export function applyBallResult(match: LiveMatchState, outcome: BallOutcome): Li
     return match;
   }
 
+  // Innings Over (All out or max overs reached)
   if (inn.wickets >= 10 || inn.legalBalls >= inn.maxOvers * 6) {
     inn.isCompleted = true;
+    
     if (match.currentInnings === 1) {
+      // Start 2nd Innings
       match.currentInnings = 2;
       match.innings2 = {
         battingTeamId: match.innings1.bowlingTeamId,
@@ -169,6 +230,7 @@ export function applyBallResult(match: LiveMatchState, outcome: BallOutcome): Li
       };
       match.phase = 'AWAITING_DELIVERY';
     } else {
+      // Match Finished
       match.phase = 'MATCH_OVER';
       if (match.innings1.totalRuns > inn.totalRuns) {
         match.winnerTeamId = match.innings1.battingTeamId;
