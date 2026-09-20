@@ -31,7 +31,6 @@ import {
   hostNextPlayer,
   endAuction,
   restartAuction,
-  moveToNextPlayer,
 } from './auctionManager';
 
 import {
@@ -78,9 +77,7 @@ app.use(express.json());
 // --------------------------------------------------
 
 if (process.env.NODE_ENV === 'production') {
-  app.use(
-    express.static(path.join(__dirname, '../../client/dist'))
-  );
+  app.use(express.static(path.join(__dirname, '../../client/dist')));
 }
 
 // --------------------------------------------------
@@ -96,7 +93,6 @@ const io = new Server(httpServer, {
     ],
     methods: ['GET', 'POST'],
   },
-
   pingTimeout: 60000,
   pingInterval: 25000,
 });
@@ -126,7 +122,6 @@ io.on('connection', (socket) => {
         socket.emit('error', {
           message: 'Player name and team name are required',
         });
-
         return;
       }
 
@@ -134,17 +129,13 @@ io.on('connection', (socket) => {
         socket.id,
         playerName,
         teamName,
-        teamShortName ||
-          teamName.substring(0, 3).toUpperCase(),
+        teamShortName || teamName.substring(0, 3).toUpperCase(),
         teamColor || '#FFD700',
         teamLogo || '🏏'
       );
 
       if (!result) {
-        socket.emit('error', {
-          message: 'Failed to create room',
-        });
-
+        socket.emit('error', { message: 'Failed to create room' });
         return;
       }
 
@@ -156,23 +147,14 @@ io.on('connection', (socket) => {
       });
 
       const room = getRoom(result.roomCode);
-
       if (room) {
-        io.to(result.roomCode).emit(
-          'room-updated',
-          getRoomPublicData(room)
-        );
+        io.to(result.roomCode).emit('room-updated', getRoomPublicData(room));
       }
 
-      console.log(
-        `[Room] Created: ${result.roomCode} by ${teamName}`
-      );
+      console.log(`[Room] Created: ${result.roomCode} by ${teamName}`);
     } catch (err) {
       console.error('[Error] create-room:', err);
-
-      socket.emit('error', {
-        message: 'Server error creating room',
-      });
+      socket.emit('error', { message: 'Server error creating room' });
     }
   });
 
@@ -193,10 +175,8 @@ io.on('connection', (socket) => {
 
       if (!roomCode || !playerName || !teamName) {
         socket.emit('error', {
-          message:
-            'Room code, player name, and team name are required',
+          message: 'Room code, player name, and team name are required',
         });
-
         return;
       }
 
@@ -207,28 +187,21 @@ io.on('connection', (socket) => {
         normalizedRoomCode,
         playerName,
         teamName,
-        teamShortName ||
-          teamName.substring(0, 3).toUpperCase(),
+        teamShortName || teamName.substring(0, 3).toUpperCase(),
         teamColor || '#4CAF50',
         teamLogo || '🏏'
       );
 
       if (result.error) {
-        socket.emit('error', {
-          message: result.error,
-        });
-
+        socket.emit('error', { message: result.error });
         return;
       }
 
       socket.join(normalizedRoomCode);
 
-      socket.emit('room-joined', {
-        teamId: result.teamId,
-      });
+      socket.emit('room-joined', { teamId: result.teamId });
 
       const room = getRoom(normalizedRoomCode);
-
       if (room) {
         io.to(normalizedRoomCode).emit(
           'room-updated',
@@ -236,15 +209,10 @@ io.on('connection', (socket) => {
         );
       }
 
-      console.log(
-        `[Room] ${teamName} joined ${normalizedRoomCode}`
-      );
+      console.log(`[Room] ${teamName} joined ${normalizedRoomCode}`);
     } catch (err) {
       console.error('[Error] join-room:', err);
-
-      socket.emit('error', {
-        message: 'Server error joining room',
-      });
+      socket.emit('error', { message: 'Server error joining room' });
     }
   });
 
@@ -256,216 +224,36 @@ io.on('connection', (socket) => {
     try {
       const { roomCode, teamId } = data;
 
-      const result = rejoinRoom(
-        socket.id,
-        roomCode,
-        teamId
-      );
+      const result = rejoinRoom(socket.id, roomCode, teamId);
 
       if (!result.success) {
         socket.emit('error', {
-          message:
-            result.error || 'Failed to rejoin',
+          message: result.error || 'Failed to rejoin',
         });
-
         return;
       }
 
       socket.join(roomCode);
 
-      socket.emit('reconnected', {
-        teamId,
-      });
+      socket.emit('reconnected', { teamId });
 
       const room = getRoom(roomCode);
-
       if (room) {
-        io.to(roomCode).emit(
-          'room-updated',
-          getRoomPublicData(room)
-        );
+        io.to(roomCode).emit('room-updated', getRoomPublicData(room));
 
-        // Send skip list
-        const skipped = getTeamSkippedPlayers(
-          roomCode,
-          teamId
-        );
+        const skipped = getTeamSkippedPlayers(roomCode, teamId);
+        socket.emit('your-skip-list', { skippedPlayers: skipped });
 
-        socket.emit('your-skip-list', {
-          teamLogo || '🏏'
-      );
-
-      if (!result) {
-        socket.emit('error', {
-          message: 'Failed to create room',
-        });
-
-        return;
-      }
-
-      socket.join(result.roomCode);
-
-      socket.emit('room-created', {
-        roomCode: result.roomCode,
-        teamId: result.teamId,
-      });
-
-      const room = getRoom(result.roomCode);
-
-      if (room) {
-        io.to(result.roomCode).emit(
-          'room-updated',
-          getRoomPublicData(room)
-        );
-      }
-
-      console.log(
-        `[Room] Created: ${result.roomCode} by ${teamName}`
-      );
-    } catch (err) {
-      console.error('[Error] create-room:', err);
-
-      socket.emit('error', {
-        message: 'Server error creating room',
-      });
-    }
-  });
-
-  // ==================================================
-  // JOIN ROOM
-  // ==================================================
-
-  socket.on('join-room', (data) => {
-    try {
-      const {
-        roomCode,
-        playerName,
-        teamName,
-        teamShortName,
-        teamColor,
-        teamLogo,
-      } = data;
-
-      if (!roomCode || !playerName || !teamName) {
-        socket.emit('error', {
-          message:
-            'Room code, player name, and team name are required',
-        });
-
-        return;
-      }
-
-      const normalizedRoomCode = roomCode.toUpperCase();
-
-      const result = joinRoom(
-        socket.id,
-        normalizedRoomCode,
-        playerName,
-        teamName,
-        teamShortName ||
-          teamName.substring(0, 3).toUpperCase(),
-        teamColor || '#4CAF50',
-        teamLogo || '🏏'
-      );
-
-      if (result.error) {
-        socket.emit('error', {
-          message: result.error,
-        });
-
-        return;
-      }
-
-      socket.join(normalizedRoomCode);
-
-      socket.emit('room-joined', {
-        teamId: result.teamId,
-      });
-
-      const room = getRoom(normalizedRoomCode);
-
-      if (room) {
-        io.to(normalizedRoomCode).emit(
-          'room-updated',
-          getRoomPublicData(room)
-        );
-      }
-
-      console.log(
-        `[Room] ${teamName} joined ${normalizedRoomCode}`
-      );
-    } catch (err) {
-      console.error('[Error] join-room:', err);
-
-      socket.emit('error', {
-        message: 'Server error joining room',
-      });
-    }
-  });
-
-  // ==================================================
-  // REJOIN ROOM
-  // ==================================================
-
-  socket.on('rejoin-room', (data) => {
-    try {
-      const { roomCode, teamId } = data;
-
-      const result = rejoinRoom(
-        socket.id,
-        roomCode,
-        teamId
-      );
-
-      if (!result.success) {
-        socket.emit('error', {
-          message:
-            result.error || 'Failed to rejoin',
-        });
-
-        return;
-      }
-
-      socket.join(roomCode);
-
-      socket.emit('reconnected', {
-        teamId,
-      });
-
-      const room = getRoom(roomCode);
-
-      if (room) {
-        io.to(roomCode).emit(
-          'room-updated',
-          getRoomPublicData(room)
-        );
-
-        // Send skip list
-        const skipped = getTeamSkippedPlayers(
-          roomCode,
-          teamId
-        );
-
-        socket.emit('your-skip-list', {
-          skippedPlayers: skipped,
-        });
-
-        // If a live match is running, also send current match state
         const match = liveMatches.get(roomCode);
         if (match) {
           socket.emit('match-updated', match);
         }
       }
 
-      console.log(
-        `[Room] Reconnected: ${teamId} to ${roomCode}`
-      );
+      console.log(`[Room] Reconnected: ${teamId} to ${roomCode}`);
     } catch (err) {
       console.error('[Error] rejoin-room:', err);
-
-      socket.emit('error', {
-        message: 'Server error rejoining',
-      });
+      socket.emit('error', { message: 'Server error rejoining' });
     }
   });
 
@@ -476,10 +264,8 @@ io.on('connection', (socket) => {
   socket.on('toggle-ready', () => {
     try {
       const result = toggleReady(socket.id);
-
       if (result) {
         const room = getRoom(result.roomCode);
-
         if (room) {
           io.to(result.roomCode).emit(
             'room-updated',
@@ -499,27 +285,18 @@ io.on('connection', (socket) => {
   socket.on('start-auction', () => {
     try {
       const data = getRoomBySocket(socket.id);
-
-      if (!data) {
-        return;
-      }
+      if (!data) return;
 
       const { room, teamId } = data;
 
       if (room.hostId !== teamId) {
         socket.emit('error', {
-          message:
-            'Only the host can start the auction',
+          message: 'Only the host can start the auction',
         });
-
         return;
       }
 
-      const started = startAuction(
-        room.code,
-        io
-      );
-
+      const started = startAuction(room.code, io);
       if (!started) {
         socket.emit('error', {
           message:
@@ -527,15 +304,8 @@ io.on('connection', (socket) => {
         });
       }
     } catch (err) {
-      console.error(
-        '[Error] start-auction:',
-        err
-      );
-
-      socket.emit('error', {
-        message:
-          'Server error starting auction',
-      });
+      console.error('[Error] start-auction:', err);
+      socket.emit('error', { message: 'Server error starting auction' });
     }
   });
 
@@ -546,30 +316,17 @@ io.on('connection', (socket) => {
   socket.on('place-bid', () => {
     try {
       const mapping = getSocketMapping(socket.id);
+      if (!mapping) return;
 
-      if (!mapping) {
-        return;
-      }
-
-      const result = placeBid(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
-
+      const result = placeBid(mapping.roomCode, mapping.teamId, io);
       if (!result.success) {
         socket.emit('error', {
-          message:
-            result.error || 'Bid failed',
+          message: result.error || 'Bid failed',
         });
       }
     } catch (err) {
       console.error('[Error] place-bid:', err);
-
-      socket.emit('error', {
-        message:
-          'Server error placing bid',
-      });
+      socket.emit('error', { message: 'Server error placing bid' });
     }
   });
 
@@ -580,30 +337,17 @@ io.on('connection', (socket) => {
   socket.on('skip-player', () => {
     try {
       const mapping = getSocketMapping(socket.id);
+      if (!mapping) return;
 
-      if (!mapping) {
-        return;
-      }
-
-      const result = skipPlayer(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
-
+      const result = skipPlayer(mapping.roomCode, mapping.teamId, io);
       if (!result.success) {
         socket.emit('error', {
-          message:
-            result.error || 'Skip failed',
+          message: result.error || 'Skip failed',
         });
       }
     } catch (err) {
       console.error('[Error] skip-player:', err);
-
-      socket.emit('error', {
-        message:
-          'Server error skipping player',
-      });
+      socket.emit('error', { message: 'Server error skipping player' });
     }
   });
 
@@ -614,21 +358,10 @@ io.on('connection', (socket) => {
   socket.on('pause-auction', () => {
     try {
       const mapping = getSocketMapping(socket.id);
-
-      if (!mapping) {
-        return;
-      }
-
-      pauseAuction(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
+      if (!mapping) return;
+      pauseAuction(mapping.roomCode, mapping.teamId, io);
     } catch (err) {
-      console.error(
-        '[Error] pause-auction:',
-        err
-      );
+      console.error('[Error] pause-auction:', err);
     }
   });
 
@@ -639,21 +372,10 @@ io.on('connection', (socket) => {
   socket.on('resume-auction', () => {
     try {
       const mapping = getSocketMapping(socket.id);
-
-      if (!mapping) {
-        return;
-      }
-
-      resumeAuction(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
+      if (!mapping) return;
+      resumeAuction(mapping.roomCode, mapping.teamId, io);
     } catch (err) {
-      console.error(
-        '[Error] resume-auction:',
-        err
-      );
+      console.error('[Error] resume-auction:', err);
     }
   });
 
@@ -664,21 +386,10 @@ io.on('connection', (socket) => {
   socket.on('next-player', () => {
     try {
       const mapping = getSocketMapping(socket.id);
-
-      if (!mapping) {
-        return;
-      }
-
-      hostNextPlayer(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
+      if (!mapping) return;
+      hostNextPlayer(mapping.roomCode, mapping.teamId, io);
     } catch (err) {
-      console.error(
-        '[Error] next-player:',
-        err
-      );
+      console.error('[Error] next-player:', err);
     }
   });
 
@@ -689,21 +400,10 @@ io.on('connection', (socket) => {
   socket.on('end-auction', () => {
     try {
       const mapping = getSocketMapping(socket.id);
-
-      if (!mapping) {
-        return;
-      }
-
-      endAuction(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
+      if (!mapping) return;
+      endAuction(mapping.roomCode, mapping.teamId, io);
     } catch (err) {
-      console.error(
-        '[Error] end-auction:',
-        err
-      );
+      console.error('[Error] end-auction:', err);
     }
   });
 
@@ -714,24 +414,12 @@ io.on('connection', (socket) => {
   socket.on('restart-auction', () => {
     try {
       const mapping = getSocketMapping(socket.id);
+      if (!mapping) return;
 
-      if (!mapping) {
-        return;
-      }
-
-      // Clear any live match for this room too
       liveMatches.delete(mapping.roomCode);
-
-      restartAuction(
-        mapping.roomCode,
-        mapping.teamId,
-        io
-      );
+      restartAuction(mapping.roomCode, mapping.teamId, io);
     } catch (err) {
-      console.error(
-        '[Error] restart-auction:',
-        err
-      );
+      console.error('[Error] restart-auction:', err);
     }
   });
 
@@ -741,64 +429,35 @@ io.on('connection', (socket) => {
 
   socket.on('submit-lineup', (data) => {
     try {
-      const {
-        playingXI,
-        impactPlayerId,
-      } = data;
-
+      const { playingXI, impactPlayerId } = data;
       const mapping = getSocketMapping(socket.id);
 
       if (!mapping) {
-        socket.emit('error', {
-          message:
-            'Room or team not found',
-        });
-
+        socket.emit('error', { message: 'Room or team not found' });
         return;
       }
 
-      // Validate lineup
       if (!Array.isArray(playingXI)) {
-        socket.emit('error', {
-          message:
-            'Invalid lineup submission',
-        });
-
+        socket.emit('error', { message: 'Invalid lineup submission' });
         return;
       }
 
-      const room = getRoom(
-        mapping.roomCode
-      );
-
+      const room = getRoom(mapping.roomCode);
       if (!room) {
-        socket.emit('error', {
-          message:
-            'Room not found',
-        });
-
+        socket.emit('error', { message: 'Room not found' });
         return;
       }
 
-      // IMPORTANT:
-      // room.teams is a Map<string, TeamInfo>.
-      // Convert Map values into an array before using find().
-      const team = Array.from(
-        room.teams.values()
-      ).find(
+      // room.teams is a Map — convert before find()
+      const team = Array.from(room.teams.values()).find(
         (t) => t.id === mapping.teamId
       );
 
       if (!team) {
-        socket.emit('error', {
-          message:
-            'Team not found',
-        });
-
+        socket.emit('error', { message: 'Team not found' });
         return;
       }
 
-      // Save this team's lineup
       saveTeamLineup(
         mapping.roomCode,
         mapping.teamId,
@@ -806,71 +465,37 @@ io.on('connection', (socket) => {
         impactPlayerId
       );
 
-      // Notify everyone in the room
       io.to(mapping.roomCode).emit(
         'room-updated',
         getRoomPublicData(room)
       );
 
-      // IMPORTANT:
-      // room.teams is a Map, so convert it
-      // to an array before using filter().
-      const activeTeams = Array.from(
-        room.teams.values()
-      ).filter(
-        (t) =>
-          t.isConnected &&
-          t.squad.length > 0
+      const activeTeams = Array.from(room.teams.values()).filter(
+        (t) => t.isConnected && t.squad.length > 0
       );
 
-      const allSubmitted =
-        activeTeams.every(
-          (t) => t.lineupSubmitted
-        );
+      const allSubmitted = activeTeams.every((t) => t.lineupSubmitted);
 
-      // Calculate rankings when everyone
-      // has submitted their lineup
-      if (
-        allSubmitted &&
-        activeTeams.length > 0
-      ) {
-        const rankings =
-          calculateRankings(
-            mapping.roomCode
-          );
-
+      if (allSubmitted && activeTeams.length > 0) {
+        const rankings = calculateRankings(mapping.roomCode);
         room.rankings = rankings;
 
-        // NOTE:
-        // We DO NOT force FINISHED anymore here.
-        // The host will now decide when to start the match.
-        // Rankings are still stored so we can rank teams later.
-
+        // Host starts the match from FinishScreen — do not force FINISHED here
         io.to(mapping.roomCode).emit(
           'room-updated',
           getRoomPublicData(room)
         );
 
-        console.log(
-          `[Rankings] Calculated for room ${mapping.roomCode}`
-        );
+        console.log(`[Rankings] Calculated for room ${mapping.roomCode}`);
       }
     } catch (err) {
-      console.error(
-        '[Error] submit-lineup:',
-        err
-      );
-
-      socket.emit('error', {
-        message:
-          'Server error submitting lineup',
-      });
+      console.error('[Error] submit-lineup:', err);
+      socket.emit('error', { message: 'Server error submitting lineup' });
     }
   });
 
   // ==================================================
   // START REALISTIC MATCH (Host only)
-  // Triggered after all teams have submitted lineups
   // ==================================================
 
   socket.on('start-match', () => {
@@ -881,7 +506,6 @@ io.on('connection', (socket) => {
       const room = getRoom(mapping.roomCode);
       if (!room) return;
 
-      // Only host can start the match
       if (room.hostId !== mapping.teamId) {
         socket.emit('error', {
           message: 'Only the host can start the match',
@@ -910,43 +534,36 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Initialize match — 2 overs per side for a quick game
+      // Pass full squads so matchEngine can hydrate playingXI IDs → Player objects
       const matchState = initializeMatch(
         mapping.roomCode,
         t1.id,
         t1.lineup,
+        t1.squad,
         t2.id,
         t2.lineup,
-        2
+        t2.squad,
+        2 // overs per side
       );
 
       liveMatches.set(mapping.roomCode, matchState);
-
       room.gameState = 'MATCH_PLAYING';
 
       io.to(mapping.roomCode).emit(
         'room-updated',
         getRoomPublicData(room)
       );
+      io.to(mapping.roomCode).emit('match-updated', matchState);
 
-      io.to(mapping.roomCode).emit(
-        'match-updated',
-        matchState
-      );
-
-      console.log(
-        `[Match] Started in room ${mapping.roomCode}`
-      );
+      console.log(`[Match] Started in room ${mapping.roomCode}`);
     } catch (err) {
       console.error('[Error] start-match:', err);
-      socket.emit('error', {
-        message: 'Server error starting match',
-      });
+      socket.emit('error', { message: 'Server error starting match' });
     }
   });
 
   // ==================================================
-  // BOWLER SUBMITS DELIVERY (Pitch target + speed)
+  // BOWLER SUBMITS DELIVERY
   // ==================================================
 
   socket.on('submit-delivery', (delivery) => {
@@ -956,18 +573,12 @@ io.on('connection', (socket) => {
 
       const match = liveMatches.get(mapping.roomCode);
       if (!match) return;
-
-      // Only allow when awaiting a delivery
       if (match.phase !== 'AWAITING_DELIVERY') return;
 
-      // Determine which team is bowling now
       const inn =
-        match.currentInnings === 1
-          ? match.innings1
-          : match.innings2;
+        match.currentInnings === 1 ? match.innings1 : match.innings2;
       if (!inn) return;
 
-      // Only bowling team members can submit a delivery
       if (mapping.teamId !== inn.bowlingTeamId) {
         socket.emit('error', {
           message: 'You are not the bowling team right now',
@@ -978,17 +589,16 @@ io.on('connection', (socket) => {
       match.pendingDelivery = delivery;
       match.phase = 'BALL_IN_FLIGHT';
 
+      liveMatches.set(mapping.roomCode, match);
       io.to(mapping.roomCode).emit('match-updated', match);
     } catch (err) {
       console.error('[Error] submit-delivery:', err);
-      socket.emit('error', {
-        message: 'Server error submitting delivery',
-      });
+      socket.emit('error', { message: 'Server error submitting delivery' });
     }
   });
 
   // ==================================================
-  // BATTER SUBMITS SHOT (Direction + shot type + timing)
+  // BATTER SUBMITS SHOT
   // ==================================================
 
   socket.on('submit-shot', (shot) => {
@@ -998,17 +608,12 @@ io.on('connection', (socket) => {
 
       const match = liveMatches.get(mapping.roomCode);
       if (!match || !match.pendingDelivery) return;
-
-      // Only allow when ball is in flight
       if (match.phase !== 'BALL_IN_FLIGHT') return;
 
       const inn =
-        match.currentInnings === 1
-          ? match.innings1
-          : match.innings2;
+        match.currentInnings === 1 ? match.innings1 : match.innings2;
       if (!inn) return;
 
-      // Only batting team members can submit a shot
       if (mapping.teamId !== inn.battingTeamId) {
         socket.emit('error', {
           message: 'You are not the batting team right now',
@@ -1017,15 +622,14 @@ io.on('connection', (socket) => {
       }
 
       const striker = inn.battingLineup.find(
-        (p: any) => p.id === inn.strikerId
+        (p: { id: string }) => p.id === inn.strikerId
       );
       const bowler = inn.bowlingLineup.find(
-        (p: any) => p.id === inn.currentBowlerId
+        (p: { id: string }) => p.id === inn.currentBowlerId
       );
 
       if (!striker || !bowler) return;
 
-      // Calculate ball outcome from physics engine
       const outcome = calculateBallOutcome(
         match.pendingDelivery,
         shot,
@@ -1037,21 +641,17 @@ io.on('connection', (socket) => {
       match.pendingDelivery = undefined;
       match.phase = 'RESULT_SHOWCASE';
 
-      // Apply outcome and update innings state
       const updatedMatch = applyBallResult(match, outcome);
+      liveMatches.set(mapping.roomCode, updatedMatch);
 
-      io.to(mapping.roomCode).emit(
-        'match-updated',
-        updatedMatch
-      );
+      io.to(mapping.roomCode).emit('match-updated', updatedMatch);
 
-      // After 4 seconds, move to next ball automatically
+      // After 4s showcase, advance to next ball (or finish)
       setTimeout(() => {
         const currentMatch = liveMatches.get(mapping.roomCode);
         if (!currentMatch) return;
 
         if (currentMatch.phase === 'MATCH_OVER') {
-          // Match is done — update the room state to FINISHED
           const room = getRoom(mapping.roomCode);
           if (room) {
             room.gameState = 'FINISHED';
@@ -1064,16 +664,12 @@ io.on('connection', (socket) => {
         }
 
         currentMatch.phase = 'AWAITING_DELIVERY';
-        io.to(mapping.roomCode).emit(
-          'match-updated',
-          currentMatch
-        );
+        liveMatches.set(mapping.roomCode, currentMatch);
+        io.to(mapping.roomCode).emit('match-updated', currentMatch);
       }, 4000);
     } catch (err) {
       console.error('[Error] submit-shot:', err);
-      socket.emit('error', {
-        message: 'Server error submitting shot',
-      });
+      socket.emit('error', { message: 'Server error submitting shot' });
     }
   });
 
@@ -1083,48 +679,27 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', (reason) => {
     try {
-      console.log(
-        `[Socket] Disconnected: ${socket.id} (${reason})`
-      );
+      console.log(`[Socket] Disconnected: ${socket.id} (${reason})`);
 
-      const result =
-        handleDisconnect(socket.id);
-
+      const result = handleDisconnect(socket.id);
       if (result) {
-        const room = getRoom(
-          result.roomCode
-        );
-
+        const room = getRoom(result.roomCode);
         if (room) {
           io.to(result.roomCode).emit(
             'room-updated',
             getRoomPublicData(room)
           );
 
-          if (
-            result.newHostId &&
-            result.newHostName
-          ) {
-            io.to(
-              result.roomCode
-            ).emit(
-              'host-changed',
-              {
-                newHostId:
-                  result.newHostId,
-
-                newHostName:
-                  result.newHostName,
-              }
-            );
+          if (result.newHostId && result.newHostName) {
+            io.to(result.roomCode).emit('host-changed', {
+              newHostId: result.newHostId,
+              newHostName: result.newHostName,
+            });
           }
         }
       }
     } catch (err) {
-      console.error(
-        '[Error] disconnect:',
-        err
-      );
+      console.error('[Error] disconnect:', err);
     }
   });
 });
@@ -1133,7 +708,7 @@ io.on('connection', (socket) => {
 // HEALTH CHECK
 // ==================================================
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
@@ -1145,13 +720,8 @@ app.get('/api/health', (req, res) => {
 // ==================================================
 
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(
-      path.join(
-        __dirname,
-        '../../client/dist/index.html'
-      )
-    );
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
   });
 }
 
@@ -1159,23 +729,8 @@ if (process.env.NODE_ENV === 'production') {
 // START SERVER
 // ==================================================
 
-httpServer.listen(
-  port,
-  '0.0.0.0',
-  () => {
-    console.log(
-      `🏏 IPL Auction Battle Server running on port ${port}`
-    );
-
-    console.log(
-      `   Environment: ${
-        process.env.NODE_ENV ||
-        'development'
-      }`
-    );
-
-    console.log(
-      `   Client URL: ${clientUrl}`
-    );
-  }
-);
+httpServer.listen(port, '0.0.0.0', () => {
+  console.log(`🏏 IPL Auction Battle Server running on port ${port}`);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   Client URL: ${clientUrl}`);
+});
