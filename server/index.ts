@@ -634,7 +634,8 @@ io.on('connection', (socket) => {
         match.pendingDelivery,
         shot,
         striker,
-        bowler
+        bowler,
+        inn.isFreeHitActive // NEW: pass free-hit flag
       );
 
       match.lastOutcome = outcome;
