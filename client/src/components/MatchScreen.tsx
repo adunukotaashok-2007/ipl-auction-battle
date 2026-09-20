@@ -8,7 +8,11 @@ export function MatchScreen() {
   const { roomData, matchState, myTeamId, submitDelivery, submitShot } = useGame();
 
   if (!roomData || !matchState) {
-    return <div className="loading-match">Loading Match Engine...</div>;
+    return (
+      <div className="match-screen-container">
+        <div className="loading-match">Loading Match Engine...</div>
+      </div>
+    );
   }
 
   const inn = matchState.currentInnings === 1 ? matchState.innings1 : matchState.innings2;
@@ -23,7 +27,7 @@ export function MatchScreen() {
   const isBatting = myTeamId === inn.battingTeamId;
   const isBowling = myTeamId === inn.bowlingTeamId;
 
-  // Formatting Over count (e.g. 1.4)
+  // Formatting Over count (e.g. 1.4 overs)
   const currentOvers = Math.floor(inn.legalBalls / 6) + (inn.legalBalls % 6) / 10;
 
   return (
@@ -31,8 +35,8 @@ export function MatchScreen() {
       
       {/* TOP SCOREBOARD */}
       <div className="scoreboard-header">
-        <div className="score-block batting-team" style={{ borderLeft: `6px solid ${battingTeam?.teamColor}` }}>
-          <h3>{battingTeam?.teamShortName} (Batting)</h3>
+        <div className="score-block batting-team" style={{ borderLeft: `6px solid ${battingTeam?.teamColor || '#3b82f6'}` }}>
+          <h3>{battingTeam?.teamShortName || 'BAT'} (Batting)</h3>
           <div className="score-main">
             {inn.totalRuns} / {inn.wickets}
           </div>
@@ -41,25 +45,27 @@ export function MatchScreen() {
 
         <div className="match-context-center">
           <div className="innings-badge">Innings {matchState.currentInnings}</div>
+          
           {matchState.currentInnings === 2 && matchState.innings1 && (
             <div className="target-badge">
               Target: {matchState.innings1.totalRuns + 1}
             </div>
           )}
+          
           {matchState.winnerTeamId && (
             <div className="winner-announcement">
-              🏆 {roomData.teams.find(t=>t.id === matchState.winnerTeamId)?.teamName} {matchState.winningMargin}
+              🏆 {roomData.teams.find(t => t.id === matchState.winnerTeamId)?.teamName} {matchState.winningMargin}
             </div>
           )}
         </div>
 
-        <div className="score-block bowling-team" style={{ borderRight: `6px solid ${bowlingTeam?.teamColor}` }}>
-          <h3>{bowlingTeam?.teamShortName} (Bowling)</h3>
+        <div className="score-block bowling-team" style={{ borderRight: `6px solid ${bowlingTeam?.teamColor || '#ef4444'}` }}>
+          <h3>{bowlingTeam?.teamShortName || 'BOWL'} (Bowling)</h3>
           <div className="current-bowler">
-            🎳 {bowler?.name}
+            🎳 {bowler?.name || 'Bowler'}
           </div>
           <div className="current-striker">
-            🏏 {striker?.name} (On Strike)
+            🏏 {striker?.name || 'Striker'} (On Strike)
           </div>
         </div>
       </div>
@@ -68,11 +74,12 @@ export function MatchScreen() {
       {matchState.phase === 'MATCH_OVER' ? (
         <div className="match-over-card">
           <h2>🏏 MATCH CONCLUDED!</h2>
-          <h1>{roomData.teams.find(t=>t.id === matchState.winnerTeamId)?.teamName}</h1>
+          <h1>{roomData.teams.find(t => t.id === matchState.winnerTeamId)?.teamName}</h1>
           <p>{matchState.winningMargin}</p>
+          
           {myTeamId === roomData.hostId && (
             <button className="btn-return-lobby" onClick={() => window.location.reload()}>
-              Return to Post-Match Stats
+              View Final Standings
             </button>
           )}
         </div>
