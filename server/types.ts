@@ -1,3 +1,5 @@
+// server/types.ts
+
 export type PlayerRole = 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper';
 
 export interface Player {
@@ -26,6 +28,7 @@ export type GameState =
   | 'NEXT_PLAYER'
   | 'PAUSED'
   | 'LINEUP_SELECTION'
+  | 'MATCH_PLAYING'
   | 'FINISHED';
 
 export interface AuctionState {
@@ -74,8 +77,83 @@ export interface RoomSettings {
 }
 
 // ----------------------------------------------------
+// REALISTIC MATCH ENGINE TYPES
+// ----------------------------------------------------
+
+export type PitchZone = 'YORKER' | 'GOOD_LENGTH' | 'SHORT' | 'FULL_TOSS';
+export type PitchLine = 'OUTSIDE_OFF' | 'MIDDLE' | 'LEG';
+export type ShotDirection = 'OFF' | 'STRAIGHT' | 'LEG';
+export type ShotType = 'GROUND' | 'LOFTED';
+
+export interface DeliveryInput {
+  zone: PitchZone;
+  line: PitchLine;
+  speed: number;
+}
+
+export interface ShotInput {
+  direction: ShotDirection;
+  shotType: ShotType;
+  timing: number; // 0.0 to 1.0 (1.0 = perfect)
+}
+
+export interface BallOutcome {
+  runs: number;
+  isWicket: boolean;
+  wicketType?: 'BOWLED' | 'CAUGHT' | 'LBW' | 'STUMPED' | 'RUN OUT';
+  isExtra: boolean;
+  extraType?: 'WIDE' | 'NO_BALL';
+  commentary: string;
+  shotQuality: 'PERFECT' | 'GOOD' | 'EARLY' | 'LATE' | 'MISSED';
+}
+
+export interface BallRecord {
+  overNumber: number;
+  ballNumber: number;
+  bowlerId: string;
+  bowlerName: string;
+  strikerId: string;
+  strikerName: string;
+  runs: number;
+  isWicket: boolean;
+  commentary: string;
+}
+
+export interface InningsState {
+  battingTeamId: string;
+  bowlingTeamId: string;
+  totalRuns: number;
+  wickets: number;
+  overs: number;
+  legalBalls: number;
+  maxOvers: number;
+  strikerId: string;
+  nonStrikerId: string;
+  currentBowlerId: string;
+  battingLineup: Player[];
+  bowlingLineup: Player[];
+  nextBatterIndex: number;
+  oversHistory: BallRecord[];
+  isCompleted: boolean;
+}
+
+export interface LiveMatchState {
+  roomCode: string;
+  totalOvers: number;
+  currentInnings: 1 | 2;
+  innings1: InningsState;
+  innings2?: InningsState;
+  phase: 'AWAITING_DELIVERY' | 'BALL_IN_FLIGHT' | 'RESULT_SHOWCASE' | 'MATCH_OVER';
+  pendingDelivery?: DeliveryInput;
+  lastOutcome?: BallOutcome;
+  winnerTeamId?: string;
+  winningMargin?: string;
+}
+
+// ----------------------------------------------------
 // INTERNAL SERVER TYPES (Used in mapping & game logic)
 // ----------------------------------------------------
+
 export interface TeamInfo {
   id: string;
   socketId: string;
@@ -112,6 +190,7 @@ export interface Room {
 // ----------------------------------------------------
 // PUBLIC TYPES (Data safely sent to the clients)
 // ----------------------------------------------------
+
 export interface TeamPublicData {
   id: string;
   playerName: string;
