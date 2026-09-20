@@ -17,7 +17,6 @@ export interface PurchasedPlayer {
   purchasePrice: number;
 }
 
-// Updated GameState to include LINEUP_SELECTION and MATCH_PLAYING phases
 export type GameState =
   | 'LOBBY'
   | 'PLAYER_REVEAL'
@@ -47,15 +46,13 @@ export interface AuctionState {
   isPaused: boolean;
 }
 
-// Lineup submitted by each player
 export interface TeamLineup {
   teamId: string;
-  playingXI: string[]; // 11 Player IDs
-  impactPlayerId: string | null; // 1 Player ID
+  playingXI: string[];
+  impactPlayerId: string | null;
   submitted: boolean;
 }
 
-// Final calculated rankings after auction
 export interface TeamRanking {
   teamId: string;
   teamName: string;
@@ -87,7 +84,16 @@ export interface DeliveryInput {
 export interface ShotInput {
   direction: ShotDirection;
   shotType: ShotType;
-  timing: number; // 0.0 to 1.0 (1.0 = perfect)
+  timing: number;
+}
+
+// -------------- NEW: Extras tracking --------------
+export interface Extras {
+  wides: number;
+  noBalls: number;
+  byes: number;
+  legByes: number;
+  total: number;
 }
 
 export interface BallOutcome {
@@ -95,7 +101,11 @@ export interface BallOutcome {
   isWicket: boolean;
   wicketType?: 'BOWLED' | 'CAUGHT' | 'LBW' | 'STUMPED' | 'RUN OUT';
   isExtra: boolean;
-  extraType?: 'WIDE' | 'NO_BALL';
+  extraType?: 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
+  isNoBall?: boolean;
+  isWide?: boolean;
+  isBye?: boolean;
+  isLegBye?: boolean;
   commentary: string;
   shotQuality: 'PERFECT' | 'GOOD' | 'EARLY' | 'LATE' | 'MISSED';
 }
@@ -112,6 +122,11 @@ export interface BallRecord {
   commentary: string;
 }
 
+export interface OverSummary {
+  bowlerId: string;
+  overs: number;
+}
+
 export interface InningsState {
   battingTeamId: string;
   bowlingTeamId: string;
@@ -126,8 +141,12 @@ export interface InningsState {
   battingLineup: Player[];
   bowlingLineup: Player[];
   nextBatterIndex: number;
-  oversHistory: BallRecord[];
+  oversHistory: OverSummary[];
   isCompleted: boolean;
+
+  // -------------- NEW: Extras + Free Hit --------------
+  extras: Extras;
+  isFreeHitActive: boolean;
 }
 
 export interface LiveMatchState {
