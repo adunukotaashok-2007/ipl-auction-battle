@@ -1,7 +1,17 @@
 // client/src/context/GameContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import socket from '../socket';
-import { RoomPublicData, TeamPublicData, AuctionState, Player } from '../types';
+import {
+  RoomPublicData,
+  TeamPublicData,
+  AuctionState,
+  Player,
+  LiveMatchState,
+  PitchZone,
+  PitchLine,
+  ShotDirection,
+  ShotType,
+} from '../types';
 
 interface GameContextType {
   roomData: RoomPublicData | null;
@@ -13,6 +23,8 @@ interface GameContextType {
   soldAnimation: { player: Player; teamName: string; price: number } | null;
   unsoldAnimation: { player: Player } | null;
   connected: boolean;
+  matchState: LiveMatchState | null;
+
   createRoom: (playerName: string, teamName: string, teamShortName: string, teamColor: string, teamLogo: string) => void;
   joinRoom: (roomCode: string, playerName: string, teamName: string, teamShortName: string, teamColor: string, teamLogo: string) => void;
   toggleReady: () => void;
@@ -27,6 +39,11 @@ interface GameContextType {
   submitLineup: (playingXI: string[], impactPlayerId: string | null) => void;
   leaveRoom: () => void;
   clearNotification: () => void;
+
+  // NEW MATCH FUNCTIONS
+  startMatch: () => void;
+  submitDelivery: (zone: PitchZone, line: PitchLine, speed: number) => void;
+  submitShot: (direction: ShotDirection, shotType: ShotType, timing: number) => void;
 }
 
 const GameContext = createContext<GameContextType>({} as GameContextType);
@@ -43,6 +60,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [soldAnimation, setSoldAnimation] = useState<{ player: Player; teamName: string; price: number } | null>(null);
   const [unsoldAnimation, setUnsoldAnimation] = useState<{ player: Player } | null>(null);
   const [connected, setConnected] = useState(socket.connected);
+  const [matchState, setMatchState] = useState<LiveMatchState | null>(null);
 
   const myTeam = roomData?.teams.find((t) => t.id === myTeamId) || null;
   const isHost = roomData?.hostId === myTeamId;
@@ -129,6 +147,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       showNotification('🏆 Auction Complete! Select your Playing XI & Impact Player!');
     }
 
+    // NEW: Match update listener
+    function onMatchUpdated(data: LiveMatchState) {
+      setMatchState(data);
+    }
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('room-created', onRoomCreated);
@@ -144,6 +167,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     socket.on('host-changed', onHostChanged);
     socket.on('your-skip-list', onSkipList);
     socket.on('auction-finished', onAuctionFinished);
+    socket.on('match-updated', onMatchUpdated);
 
     return () => {
       socket.off('connect', onConnect);
@@ -161,6 +185,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       socket.off('host-changed', onHostChanged);
       socket.off('your-skip-list', onSkipList);
       socket.off('auction-finished', onAuctionFinished);
+      socket.off('match-updated', onMatchUpdated);
     };
   }, []);
 
@@ -223,12 +248,32 @@ export function GameProvider({ children }: { children: ReactNode }) {
     socket.emit('submit-lineup', { playingXI, impactPlayerId });
   }, []);
 
+  // NEW MATCH EMITTERS
+  const startMatchFn = useCallback(() => {
+    socket.emit('start-match');
+  }, []);
+
+  const submitDeliveryFn = useCallback(
+    (zone: PitchZone, line: PitchLine, speed: number) => {
+      socket.emit('submit-delivery', { zone, line, speed });
+    },
+    []
+  );
+
+  const submitShotFn = useCallback(
+    (direction: ShotDirection, shotType: ShotType, timing: number) => {
+      socket.emit('submit-shot', { direction, shotType, timing });
+    },
+    []
+  );
+
   const leaveRoom = useCallback(() => {
     localStorage.removeItem('ipl_room_code');
     localStorage.removeItem('ipl_team_id');
     setRoomData(null);
     setMyTeamId(null);
     setSkippedPlayers([]);
+    setMatchState(null);
     window.location.reload();
   }, []);
 
@@ -248,6 +293,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         soldAnimation,
         unsoldAnimation,
         connected,
+        matchState,
         createRoom,
         joinRoom,
         toggleReady: toggleReadyFn,
@@ -260,6 +306,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
         endAuction: endAuctionFn,
         restartAuction: restartAuctionFn,
         submitLineup: submitLineupFn,
+        startMatch: startMatchFn,
+        submitDelivery: submitDeliveryFn,
+        submitShot: submitShotFn,
         leaveRoom,
         clearNotification,
       }}
