@@ -448,7 +448,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // room.teams is a Map — convert before find()
       const team = Array.from(room.teams.values()).find(
         (t) => t.id === mapping.teamId
       );
@@ -480,7 +479,6 @@ io.on('connection', (socket) => {
         const rankings = calculateRankings(mapping.roomCode);
         room.rankings = rankings;
 
-        // Host starts the match from FinishScreen — do not force FINISHED here
         io.to(mapping.roomCode).emit(
           'room-updated',
           getRoomPublicData(room)
@@ -496,9 +494,10 @@ io.on('connection', (socket) => {
 
   // ==================================================
   // START REALISTIC MATCH (Host only)
+  // Accepts { overs: number } from client
   // ==================================================
 
-  socket.on('start-match', () => {
+  socket.on('start-match', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
       if (!mapping) return;
@@ -534,7 +533,22 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Pass full squads so matchEngine can hydrate playingXI IDs → Player objects
+      const t1Count = t1.lineup.playingXI?.length || 0;
+      const t2Count = t2.lineup.playingXI?.length || 0;
+
+      if (t1Count < 2 || t2Count < 2) {
+        socket.emit('error', {
+          message: `Both teams need at least 2 players in Playing XI (currently ${t1.teamName}: ${t1Count}, ${t2.teamName}: ${t2Count}).`,
+        });
+        return;
+      }
+
+      // Accept overs from client, default to 2
+      const overs =
+        data && typeof data.overs === 'number'
+          ? Math.max(1, Math.min(20, data.overs))
+          : 2;
+
       const matchState = initializeMatch(
         mapping.roomCode,
         t1.id,
@@ -543,7 +557,7 @@ io.on('connection', (socket) => {
         t2.id,
         t2.lineup,
         t2.squad,
-        2 // overs per side
+        overs
       );
 
       liveMatches.set(mapping.roomCode, matchState);
@@ -555,7 +569,9 @@ io.on('connection', (socket) => {
       );
       io.to(mapping.roomCode).emit('match-updated', matchState);
 
-      console.log(`[Match] Started in room ${mapping.roomCode}`);
+      console.log(
+        `[Match] Started in room ${mapping.roomCode} — ${overs} overs`
+      );
     } catch (err) {
       console.error('[Error] start-match:', err);
       socket.emit('error', { message: 'Server error starting match' });
@@ -598,7 +614,7 @@ io.on('connection', (socket) => {
   });
 
   // ==================================================
-  // BATTER SUBMITS SHOT
+  // BATTER SUBMITS SHOT — passes isFreeHitActive
   // ==================================================
 
   socket.on('submit-shot', (shot) => {
@@ -635,7 +651,7 @@ io.on('connection', (socket) => {
         shot,
         striker,
         bowler,
-        inn.isFreeHitActive // NEW: pass free-hit flag
+        inn.isFreeHitActive
       );
 
       match.lastOutcome = outcome;
@@ -647,7 +663,6 @@ io.on('connection', (socket) => {
 
       io.to(mapping.roomCode).emit('match-updated', updatedMatch);
 
-      // After 4s showcase, advance to next ball (or finish)
       setTimeout(() => {
         const currentMatch = liveMatches.get(mapping.roomCode);
         if (!currentMatch) return;
