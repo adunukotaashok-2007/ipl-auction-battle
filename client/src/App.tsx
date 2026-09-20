@@ -5,6 +5,7 @@ import Home from './components/Home';
 import Lobby from './components/Lobby';
 import AuctionScreen from './components/AuctionScreen';
 import FinishScreen from './components/FinishScreen';
+import { MatchScreen } from './components/MatchScreen';
 import SoldAnimation from './components/SoldAnimation';
 import './App.css';
 
@@ -17,8 +18,13 @@ function AppContent() {
     switch (roomData.gameState) {
       case 'LOBBY':
         return <Lobby />;
+
+      case 'MATCH_PLAYING':
+        return <MatchScreen />;
+
       case 'FINISHED':
         return <FinishScreen />;
+
       default:
         return <AuctionScreen />;
     }
