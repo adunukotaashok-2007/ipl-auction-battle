@@ -786,23 +786,3 @@ export function applyBallResult(
 
   return match;
 }
-
-The actual Render error is fixed by these two changes:
-
-extras: {
-  wides: 0,
-  noBalls: 0,
-  byes: 0,
-  legByes: 0,
-  total: 0,
-},
-
-and:
-
-inn.extras.total =
-  inn.extras.wides +
-  inn.extras.noBalls +
-  inn.extras.byes +
-  inn.extras.legByes;
-
-After replacing the file, push it to GitHub and Render should run the build again.
