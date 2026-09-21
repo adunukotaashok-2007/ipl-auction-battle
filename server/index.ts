@@ -1,5 +1,3 @@
-// server/index.ts
-
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -110,13 +108,13 @@ io.on('connection', (socket) => {
 
   socket.on('create-room', (data) => {
     try {
+      const playerName = data?.playerName || data?.userName;
       const {
-        playerName,
         teamName,
         teamShortName,
         teamColor,
         teamLogo,
-      } = data;
+      } = data || {};
 
       if (!playerName || !teamName) {
         socket.emit('error', {
@@ -164,14 +162,14 @@ io.on('connection', (socket) => {
 
   socket.on('join-room', (data) => {
     try {
+      const playerName = data?.playerName || data?.userName;
       const {
         roomCode,
-        playerName,
         teamName,
         teamShortName,
         teamColor,
         teamLogo,
-      } = data;
+      } = data || {};
 
       if (!roomCode || !playerName || !teamName) {
         socket.emit('error', {
@@ -199,7 +197,10 @@ io.on('connection', (socket) => {
 
       socket.join(normalizedRoomCode);
 
-      socket.emit('room-joined', { teamId: result.teamId });
+      socket.emit('room-joined', {
+        roomCode: normalizedRoomCode,
+        teamId: result.teamId,
+      });
 
       const room = getRoom(normalizedRoomCode);
       if (room) {
@@ -222,7 +223,9 @@ io.on('connection', (socket) => {
 
   socket.on('rejoin-room', (data) => {
     try {
-      const { roomCode, teamId } = data;
+      const { roomCode, teamId } = data || {};
+
+      if (!roomCode || !teamId) return;
 
       const result = rejoinRoom(socket.id, roomCode, teamId);
 
@@ -282,12 +285,15 @@ io.on('connection', (socket) => {
   // START AUCTION
   // ==================================================
 
-  socket.on('start-auction', () => {
+  socket.on('start-auction', (data) => {
     try {
-      const data = getRoomBySocket(socket.id);
-      if (!data) return;
+      const socketData = getRoomBySocket(socket.id);
+      const roomCode = socketData?.room.code || data?.roomCode;
+      const teamId = socketData?.teamId || data?.teamId;
 
-      const { room, teamId } = data;
+      if (!roomCode) return;
+      const room = getRoom(roomCode);
+      if (!room) return;
 
       if (room.hostId !== teamId) {
         socket.emit('error', {
@@ -313,12 +319,15 @@ io.on('connection', (socket) => {
   // PLACE BID
   // ==================================================
 
-  socket.on('place-bid', () => {
+  socket.on('place-bid', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
 
-      const result = placeBid(mapping.roomCode, mapping.teamId, io);
+      if (!roomCode || !teamId) return;
+
+      const result = placeBid(roomCode, teamId, io);
       if (!result.success) {
         socket.emit('error', {
           message: result.error || 'Bid failed',
@@ -334,12 +343,15 @@ io.on('connection', (socket) => {
   // SKIP PLAYER
   // ==================================================
 
-  socket.on('skip-player', () => {
+  socket.on('skip-player', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
 
-      const result = skipPlayer(mapping.roomCode, mapping.teamId, io);
+      if (!roomCode || !teamId) return;
+
+      const result = skipPlayer(roomCode, teamId, io);
       if (!result.success) {
         socket.emit('error', {
           message: result.error || 'Skip failed',
@@ -355,11 +367,14 @@ io.on('connection', (socket) => {
   // PAUSE AUCTION
   // ==================================================
 
-  socket.on('pause-auction', () => {
+  socket.on('pause-auction', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
-      pauseAuction(mapping.roomCode, mapping.teamId, io);
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
+
+      if (!roomCode || !teamId) return;
+      pauseAuction(roomCode, teamId, io);
     } catch (err) {
       console.error('[Error] pause-auction:', err);
     }
@@ -369,11 +384,14 @@ io.on('connection', (socket) => {
   // RESUME AUCTION
   // ==================================================
 
-  socket.on('resume-auction', () => {
+  socket.on('resume-auction', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
-      resumeAuction(mapping.roomCode, mapping.teamId, io);
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
+
+      if (!roomCode || !teamId) return;
+      resumeAuction(roomCode, teamId, io);
     } catch (err) {
       console.error('[Error] resume-auction:', err);
     }
@@ -383,11 +401,14 @@ io.on('connection', (socket) => {
   // NEXT PLAYER
   // ==================================================
 
-  socket.on('next-player', () => {
+  socket.on('next-player', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
-      hostNextPlayer(mapping.roomCode, mapping.teamId, io);
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
+
+      if (!roomCode || !teamId) return;
+      hostNextPlayer(roomCode, teamId, io);
     } catch (err) {
       console.error('[Error] next-player:', err);
     }
@@ -397,11 +418,14 @@ io.on('connection', (socket) => {
   // END AUCTION
   // ==================================================
 
-  socket.on('end-auction', () => {
+  socket.on('end-auction', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
-      endAuction(mapping.roomCode, mapping.teamId, io);
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
+
+      if (!roomCode || !teamId) return;
+      endAuction(roomCode, teamId, io);
     } catch (err) {
       console.error('[Error] end-auction:', err);
     }
@@ -411,13 +435,16 @@ io.on('connection', (socket) => {
   // RESTART AUCTION
   // ==================================================
 
-  socket.on('restart-auction', () => {
+  socket.on('restart-auction', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
 
-      liveMatches.delete(mapping.roomCode);
-      restartAuction(mapping.roomCode, mapping.teamId, io);
+      if (!roomCode || !teamId) return;
+
+      liveMatches.delete(roomCode);
+      restartAuction(roomCode, teamId, io);
     } catch (err) {
       console.error('[Error] restart-auction:', err);
     }
@@ -429,10 +456,14 @@ io.on('connection', (socket) => {
 
   socket.on('submit-lineup', (data) => {
     try {
-      const { playingXI, impactPlayerId } = data;
+      const playingXI = data?.playingXI || data?.lineup || [];
+      const impactPlayerId = data?.impactPlayerId || null;
       const mapping = getSocketMapping(socket.id);
 
-      if (!mapping) {
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
+
+      if (!roomCode || !teamId) {
         socket.emit('error', { message: 'Room or team not found' });
         return;
       }
@@ -442,14 +473,14 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const room = getRoom(mapping.roomCode);
+      const room = getRoom(roomCode);
       if (!room) {
         socket.emit('error', { message: 'Room not found' });
         return;
       }
 
       const team = Array.from(room.teams.values()).find(
-        (t) => t.id === mapping.teamId
+        (t) => t.id === teamId
       );
 
       if (!team) {
@@ -457,17 +488,19 @@ io.on('connection', (socket) => {
         return;
       }
 
-      saveTeamLineup(
-        mapping.roomCode,
-        mapping.teamId,
+      const saved = saveTeamLineup(
+        roomCode,
+        teamId,
         playingXI,
         impactPlayerId
       );
 
-      io.to(mapping.roomCode).emit(
-        'room-updated',
-        getRoomPublicData(room)
-      );
+      if (saved.error) {
+        socket.emit('error', { message: saved.error });
+        return;
+      }
+
+      io.to(roomCode).emit('room-updated', getRoomPublicData(room));
 
       const activeTeams = Array.from(room.teams.values()).filter(
         (t) => t.isConnected && t.squad.length > 0
@@ -476,15 +509,11 @@ io.on('connection', (socket) => {
       const allSubmitted = activeTeams.every((t) => t.lineupSubmitted);
 
       if (allSubmitted && activeTeams.length > 0) {
-        const rankings = calculateRankings(mapping.roomCode);
+        const rankings = calculateRankings(roomCode);
         room.rankings = rankings;
 
-        io.to(mapping.roomCode).emit(
-          'room-updated',
-          getRoomPublicData(room)
-        );
-
-        console.log(`[Rankings] Calculated for room ${mapping.roomCode}`);
+        io.to(roomCode).emit('room-updated', getRoomPublicData(room));
+        console.log(`[Rankings] Calculated for room ${roomCode}`);
       }
     } catch (err) {
       console.error('[Error] submit-lineup:', err);
@@ -500,12 +529,15 @@ io.on('connection', (socket) => {
   socket.on('start-match', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
 
-      const room = getRoom(mapping.roomCode);
+      if (!roomCode) return;
+
+      const room = getRoom(roomCode);
       if (!room) return;
 
-      if (room.hostId !== mapping.teamId) {
+      if (room.hostId !== teamId) {
         socket.emit('error', {
           message: 'Only the host can start the match',
         });
@@ -543,14 +575,13 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Accept overs from client, default to 2
       const overs =
         data && typeof data.overs === 'number'
           ? Math.max(1, Math.min(20, data.overs))
           : 2;
 
       const matchState = initializeMatch(
-        mapping.roomCode,
+        roomCode,
         t1.id,
         t1.lineup,
         t1.squad,
@@ -560,18 +591,13 @@ io.on('connection', (socket) => {
         overs
       );
 
-      liveMatches.set(mapping.roomCode, matchState);
+      liveMatches.set(roomCode, matchState);
       room.gameState = 'MATCH_PLAYING';
 
-      io.to(mapping.roomCode).emit(
-        'room-updated',
-        getRoomPublicData(room)
-      );
-      io.to(mapping.roomCode).emit('match-updated', matchState);
+      io.to(roomCode).emit('room-updated', getRoomPublicData(room));
+      io.to(roomCode).emit('match-updated', matchState);
 
-      console.log(
-        `[Match] Started in room ${mapping.roomCode} — ${overs} overs`
-      );
+      console.log(`[Match] Started in room ${roomCode} — ${overs} overs`);
     } catch (err) {
       console.error('[Error] start-match:', err);
       socket.emit('error', { message: 'Server error starting match' });
@@ -582,12 +608,15 @@ io.on('connection', (socket) => {
   // BOWLER SUBMITS DELIVERY
   // ==================================================
 
-  socket.on('submit-delivery', (delivery) => {
+  socket.on('submit-delivery', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
 
-      const match = liveMatches.get(mapping.roomCode);
+      if (!roomCode) return;
+
+      const match = liveMatches.get(roomCode);
       if (!match) return;
       if (match.phase !== 'AWAITING_DELIVERY') return;
 
@@ -595,18 +624,19 @@ io.on('connection', (socket) => {
         match.currentInnings === 1 ? match.innings1 : match.innings2;
       if (!inn) return;
 
-      if (mapping.teamId !== inn.bowlingTeamId) {
+      if (teamId !== inn.bowlingTeamId) {
         socket.emit('error', {
           message: 'You are not the bowling team right now',
         });
         return;
       }
 
+      const delivery = data?.delivery || data;
       match.pendingDelivery = delivery;
       match.phase = 'BALL_IN_FLIGHT';
 
-      liveMatches.set(mapping.roomCode, match);
-      io.to(mapping.roomCode).emit('match-updated', match);
+      liveMatches.set(roomCode, match);
+      io.to(roomCode).emit('match-updated', match);
     } catch (err) {
       console.error('[Error] submit-delivery:', err);
       socket.emit('error', { message: 'Server error submitting delivery' });
@@ -614,15 +644,18 @@ io.on('connection', (socket) => {
   });
 
   // ==================================================
-  // BATTER SUBMITS SHOT — passes isFreeHitActive
+  // BATTER SUBMITS SHOT
   // ==================================================
 
-  socket.on('submit-shot', (shot) => {
+  socket.on('submit-shot', (data) => {
     try {
       const mapping = getSocketMapping(socket.id);
-      if (!mapping) return;
+      const roomCode = mapping?.roomCode || data?.roomCode;
+      const teamId = mapping?.teamId || data?.teamId;
 
-      const match = liveMatches.get(mapping.roomCode);
+      if (!roomCode) return;
+
+      const match = liveMatches.get(roomCode);
       if (!match || !match.pendingDelivery) return;
       if (match.phase !== 'BALL_IN_FLIGHT') return;
 
@@ -630,7 +663,7 @@ io.on('connection', (socket) => {
         match.currentInnings === 1 ? match.innings1 : match.innings2;
       if (!inn) return;
 
-      if (mapping.teamId !== inn.battingTeamId) {
+      if (teamId !== inn.battingTeamId) {
         socket.emit('error', {
           message: 'You are not the batting team right now',
         });
@@ -646,6 +679,8 @@ io.on('connection', (socket) => {
 
       if (!striker || !bowler) return;
 
+      const shot = data?.shot || data;
+
       const outcome = calculateBallOutcome(
         match.pendingDelivery,
         shot,
@@ -659,29 +694,26 @@ io.on('connection', (socket) => {
       match.phase = 'RESULT_SHOWCASE';
 
       const updatedMatch = applyBallResult(match, outcome);
-      liveMatches.set(mapping.roomCode, updatedMatch);
+      liveMatches.set(roomCode, updatedMatch);
 
-      io.to(mapping.roomCode).emit('match-updated', updatedMatch);
+      io.to(roomCode).emit('match-updated', updatedMatch);
 
       setTimeout(() => {
-        const currentMatch = liveMatches.get(mapping.roomCode);
+        const currentMatch = liveMatches.get(roomCode);
         if (!currentMatch) return;
 
         if (currentMatch.phase === 'MATCH_OVER') {
-          const room = getRoom(mapping.roomCode);
+          const room = getRoom(roomCode);
           if (room) {
             room.gameState = 'FINISHED';
-            io.to(mapping.roomCode).emit(
-              'room-updated',
-              getRoomPublicData(room)
-            );
+            io.to(roomCode).emit('room-updated', getRoomPublicData(room));
           }
           return;
         }
 
         currentMatch.phase = 'AWAITING_DELIVERY';
-        liveMatches.set(mapping.roomCode, currentMatch);
-        io.to(mapping.roomCode).emit('match-updated', currentMatch);
+        liveMatches.set(roomCode, currentMatch);
+        io.to(roomCode).emit('match-updated', currentMatch);
       }, 4000);
     } catch (err) {
       console.error('[Error] submit-shot:', err);
