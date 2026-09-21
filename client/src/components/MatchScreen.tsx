@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import CricketMatchCanvas from './CricketMatchCanvas';
+import { TeamPublicData } from '../types';
 import './MatchScreen.css';
 
 const MatchScreen: React.FC = () => {
-  const { matchState, currentTeamId, roomState } = useGame();
+  const { matchState, myTeamId, roomData } = useGame();
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
-  // Handle Orientation Lock and Warnings
   useEffect(() => {
     const handleResize = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
@@ -15,10 +15,9 @@ const MatchScreen: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
 
-    // Attempt to lock orientation on mobile devices
     if (typeof window.screen.orientation !== 'undefined' && 'lock' in window.screen.orientation) {
       (window.screen.orientation as any).lock('landscape').catch(() => {
-        // Many browsers require full-screen for orientation lock, so we fail silently
+        // Silently fail if browser requires full-screen mode first
       });
     }
 
@@ -27,60 +26,88 @@ const MatchScreen: React.FC = () => {
     };
   }, []);
 
-  if (!matchState || !roomState) return <div className="loading">Initializing Match Engine...</div>;
+  if (!matchState || !roomData) {
+    return <div className="loading">Initializing Match Engine...</div>;
+  }
 
-  const { currentInnings, inningsIndex, targetScore } = matchState;
-  const battingTeam = roomState.teams.find(t => t.id === currentInnings.battingTeamId);
-  const bowlingTeam = roomState.teams.find(t => t.id === currentInnings.bowlingTeamId);
+  // Active innings determination based on your types schema
+  const activeInnings = matchState.currentInnings === 1 
+    ? matchState.innings1 
+    : matchState.innings2;
 
-  // Calculate Run Rates
-  const totalBalls = currentInnings.oversCompleted * 6 + currentInnings.ballsInCurrentOver;
-  const crr = totalBalls > 0 ? (currentInnings.runs / (totalBalls / 6)).toFixed(2) : "0.00";
-  
+  if (!activeInnings) {
+    return <div className="loading">Loading Innings State...</div>;
+  }
+
+  const battingTeam = roomData.teams.find((t: TeamPublicData) => t.id === activeInnings.battingTeamId);
+  const bowlingTeam = roomData.teams.find((t: TeamPublicData) => t.id === activeInnings.bowlingTeamId);
+
+  // Active players
+  const striker = activeInnings.battingLineup.find(p => p.id === activeInnings.strikerId);
+  const bowler = activeInnings.bowlingLineup.find(p => p.id === activeInnings.currentBowlerId);
+
+  // Target calculations
+  const targetScore = matchState.currentInnings === 2 ? matchState.innings1.totalRuns + 1 : null;
+
+  // Run Rate calculations
+  const ballsInCurrentOver = activeInnings.legalBalls % 6;
+  const completedOvers = Math.floor(activeInnings.legalBalls / 6);
+  const totalLegalBalls = activeInnings.legalBalls;
+
+  const crr = totalLegalBalls > 0 
+    ? (activeInnings.totalRuns / (totalLegalBalls / 6)).toFixed(2) 
+    : "0.00";
+
   let rrr: string | null = null;
-  if (inningsIndex === 1 && targetScore) {
-    const remainingRuns = targetScore - currentInnings.runs;
-    const totalMatchBalls = matchState.oversPerInnings * 6;
-    const remainingBalls = totalMatchBalls - totalBalls;
+  if (matchState.currentInnings === 2 && targetScore) {
+    const remainingRuns = targetScore - activeInnings.totalRuns;
+    const maxMatchBalls = matchState.totalOvers * 6;
+    const remainingBalls = maxMatchBalls - totalLegalBalls;
     rrr = remainingBalls > 0 ? (remainingRuns / (remainingBalls / 6)).toFixed(2) : "N/A";
   }
 
-  const isBatting = currentTeamId === currentInnings.battingTeamId;
+  const isBatting = myTeamId === activeInnings.battingTeamId;
 
   return (
     <div className="match-screen">
-      {/* Portrait Orientation Overlay */}
+      {/* Portrait Warning Overlay for Mobile */}
       {isPortrait && (
         <div className="portrait-warning-overlay">
           <div className="warning-content">
             <div className="phone-icon">📱</div>
             <h2>PLEASE ROTATE YOUR PHONE</h2>
-            <p>Landscape mode is required for the best experience.</p>
+            <p>Landscape mode is required for full match experience.</p>
           </div>
         </div>
       )}
 
-      {/* Broadcast HUD Top Bar */}
+      {/* Top Broadcast Score HUD */}
       <div className="match-hud-top">
-        <div className="team-score-block batting" style={{ borderBottomColor: battingTeam?.color || '#eee' }}>
-          <span className="team-name">{battingTeam?.name}</span>
-          <span className="score-main">{currentInnings.runs}/{currentInnings.wickets}</span>
-          <span className="overs-sub">({currentInnings.oversCompleted}.{currentInnings.ballsInCurrentOver})</span>
+        <div 
+          className="team-score-block batting" 
+          style={{ borderBottomColor: battingTeam?.teamColor || '#2980b9' }}
+        >
+          <span className="team-name">{battingTeam?.teamName || 'BATTING'}</span>
+          <span className="score-main">{activeInnings.totalRuns}/{activeInnings.wickets}</span>
+          <span className="overs-sub">({completedOvers}.{ballsInCurrentOver})</span>
         </div>
 
         <div className="match-info-center">
-          {inningsIndex === 1 && targetScore ? (
+          {targetScore ? (
             <div className="target-pill">TARGET: {targetScore}</div>
           ) : (
             <div className="inning-pill">1ST INNINGS</div>
           )}
-          {currentInnings.isFreeHitActive && (
+          {activeInnings.isFreeHitActive && (
             <div className="free-hit-banner">FREE HIT!</div>
           )}
         </div>
 
-        <div className="team-score-block bowling" style={{ borderBottomColor: bowlingTeam?.color || '#eee' }}>
-          <span className="team-name">{bowlingTeam?.name}</span>
+        <div 
+          className="team-score-block bowling" 
+          style={{ borderBottomColor: bowlingTeam?.teamColor || '#e74c3c' }}
+        >
+          <span className="team-name">{bowlingTeam?.teamName || 'BOWLING'}</span>
           <div className="run-rates">
             <span>CRR: {crr}</span>
             {rrr && <span>RRR: {rrr}</span>}
@@ -88,33 +115,33 @@ const MatchScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Game Canvas */}
+      {/* Canvas Match Visualizer */}
       <div className="canvas-container">
         <CricketMatchCanvas />
       </div>
 
-      {/* Bottom HUD: Player Stats & Extras */}
+      {/* Bottom HUD: Bat/Bowl Stats & Extras Breakdown */}
       <div className="match-hud-bottom">
         <div className="player-stats">
           <div className="stat-item active">
             <span className="label">BAT:</span>
             <span className="value">
-              {currentInnings.striker.name} {currentInnings.striker.runs}({currentInnings.striker.ballsFaced})*
+              {striker ? striker.name : 'Batter'} *
             </span>
           </div>
           <div className="stat-item">
             <span className="label">BOWL:</span>
             <span className="value">
-              {currentInnings.currentBowler.name} {currentInnings.currentBowler.wickets}/{currentInnings.currentBowler.runsConceded}
+              {bowler ? bowler.name : 'Bowler'}
             </span>
           </div>
         </div>
 
         <div className="extras-breakdown">
-          <span className="extra-tag">EXTRAS: {currentInnings.extras.total}</span>
+          <span className="extra-tag">EXTRAS: {activeInnings.extras.total}</span>
           <div className="extra-details">
-            (W: {currentInnings.extras.wides}, NB: {currentInnings.extras.noBalls}, 
-             B: {currentInnings.extras.byes}, LB: {currentInnings.extras.legByes})
+            (W: {activeInnings.extras.wides}, NB: {activeInnings.extras.noBalls}, 
+             B: {activeInnings.extras.byes}, LB: {activeInnings.extras.legByes})
           </div>
         </div>
 
@@ -127,26 +154,28 @@ const MatchScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Over Summary Overlay (Fades in between overs) */}
-      {matchState.phase === 'RESULT_SHOWCASE' && (
+      {/* Ball Result Showcase Overlay */}
+      {matchState.phase === 'RESULT_SHOWCASE' && matchState.lastOutcome && (
         <div className="ball-result-overlay">
           <div className="result-text animate-pop">
-            {matchState.lastBallResult?.isWicket ? "WICKET!" : 
-             matchState.lastBallResult?.extraType ? matchState.lastBallResult.extraType :
-             `${matchState.lastBallResult?.runsScored} RUNS`}
+            {matchState.lastOutcome.isWicket 
+              ? `WICKET! (${matchState.lastOutcome.wicketType})` 
+              : matchState.lastOutcome.isExtra 
+                ? matchState.lastOutcome.extraType 
+                : `${matchState.lastOutcome.runs} RUNS`}
           </div>
         </div>
       )}
 
       {/* Match Finished Modal */}
-      {roomState.status === 'FINISHED' && (
+      {matchState.phase === 'MATCH_OVER' && (
         <div className="match-end-modal">
           <div className="modal-content">
             <h1>MATCH FINISHED</h1>
             <p className="result-summary">
-              {targetScore && currentInnings.runs >= targetScore 
-                ? `${battingTeam?.name} WON BY ${10 - currentInnings.wickets} WICKETS!`
-                : `${bowlingTeam?.name} WON BY ${targetScore ? targetScore - 1 - currentInnings.runs : 0} RUNS!`}
+              {matchState.winningMargin 
+                ? `${matchState.winnerTeamId} WON ${matchState.winningMargin}` 
+                : "MATCH COMPLETED"}
             </p>
             <button onClick={() => window.location.reload()}>Back to Lobby</button>
           </div>
