@@ -1,312 +1,291 @@
-// client/src/components/CricketMatchCanvas.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { 
+  DeliveryInput, 
+  ShotInput, 
+  PitchZone, 
+  PitchLine, 
+  ShotDirection, 
+  ShotType 
+} from '../types';
 import './CricketMatchCanvas.css';
-import { PitchZone, PitchLine, ShotDirection, ShotType } from '../types';
 
 export interface MatchCanvasProps {
   isBatting: boolean;
   isBowling: boolean;
-  phase: 'AWAITING_DELIVERY' | 'BALL_IN_FLIGHT' | 'RESULT_SHOWCASE' | 'MATCH_OVER';
+  phase: 'AWAITING_DELIVERY' | 'BALL_IN_FLIGHT' | 'RESULT_SHOWCASE' | 'MATCH_OVER' | string;
   battingTeamName: string;
   bowlingTeamName: string;
-  battingColor?: string;
-  bowlingColor?: string;
   strikerName: string;
   bowlerName: string;
-  lastOutcome?: {
-    runs: number;
-    isWicket: boolean;
-    wicketType?: string;
-    commentary: string;
-    shotQuality: string;
-  };
-  onDeliverBall: (zone: PitchZone, line: PitchLine, speed: number) => void;
-  onHitShot: (direction: ShotDirection, shotType: ShotType, timing: number) => void;
+  onDeliverySubmit: (delivery: DeliveryInput) => void;
+  onShotSubmit: (shot: ShotInput) => void;
 }
 
 export const CricketMatchCanvas: React.FC<MatchCanvasProps> = ({
   isBatting,
   isBowling,
   phase,
-  battingTeamName,
-  bowlingTeamName,
-  battingColor = '#0284c7',
-  bowlingColor = '#dc2626',
   strikerName,
   bowlerName,
-  lastOutcome,
-  onDeliverBall,
-  onHitShot,
+  onDeliverySubmit,
+  onShotSubmit,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Bowling
+  // Bowling Controls State
   const [selectedZone, setSelectedZone] = useState<PitchZone>('GOOD_LENGTH');
   const [selectedLine, setSelectedLine] = useState<PitchLine>('MIDDLE');
-  const [bowlingSpeed, setBowlingSpeed] = useState<number>(85);
+  const [bowlingSpeed, setBowlingSpeed] = useState<number>(135);
 
-  // Batting
-  const [shotDirection, setShotDirection] = useState<ShotDirection>('STRAIGHT');
-  const [shotType, setShotType] = useState<ShotType>('LOFTED');
+  // Batting Controls State
+  const [selectedDirection, setSelectedDirection] = useState<ShotDirection>('STRAIGHT');
+  const [selectedShotType, setSelectedShotType] = useState<ShotType>('GROUND');
+  const [timing, setTiming] = useState<number>(50);
 
-  // Animation Refs
-  const timingRef = useRef<number>(0);
-  const timingDirectionRef = useRef<number>(1);
-  const animFrameRef = useRef<number>(0);
-  const ballProgressRef = useRef<number>(0);
-  const batSwingRef = useRef<number>(0);
+  // Handle Delivery Submission
+  const handleDeliverBall = () => {
+    onDeliverySubmit({
+      zone: selectedZone,
+      line: selectedLine,
+      speed: bowlingSpeed,
+    });
+  };
 
+  // Handle Shot Submission
+  const handlePlayShot = () => {
+    onShotSubmit({
+      direction: selectedDirection,
+      shotType: selectedShotType,
+      timing: timing,
+    });
+  };
+
+  // Canvas Animation & Rendering Loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let startTime = performance.now();
+    let animationFrameId: number;
 
-    const render = (time: number) => {
-      const elapsed = (time - startTime) / 1000;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const render = () => {
+      // Set resolution based on parent container width
+      canvas.width = canvas.parentElement?.clientWidth || 800;
+      canvas.height = canvas.parentElement?.clientHeight || 500;
 
-      // 1. Draw Stadium Turf & Pitch
-      drawStadium(ctx, canvas.width, canvas.height);
-      const pitchTopY = 140, pitchBottomY = 460, pitchWidthTop = 70, pitchWidthBottom = 110;
-      drawPitch(ctx, canvas.width, pitchTopY, pitchBottomY, pitchWidthTop, pitchWidthBottom);
+      const width = canvas.width;
+      const height = canvas.height;
 
-      // Calculate Target Marker
-      let targetX = canvas.width / 2;
-      let targetY = 320;
-      if (selectedLine === 'OUTSIDE_OFF') targetX = canvas.width / 2 - 25;
-      if (selectedLine === 'LEG') targetX = canvas.width / 2 + 25;
-      if (selectedZone === 'YORKER') targetY = 410;
-      if (selectedZone === 'SHORT') targetY = 240;
+      // 1. Draw Field (Grass Ground)
+      ctx.fillStyle = '#27ae60';
+      ctx.fillRect(0, 0, width, height);
 
-      if (isBowling || phase === 'AWAITING_DELIVERY') {
-        drawPitchTarget(ctx, targetX, targetY);
+      // Outfield Boundary Oval
+      ctx.strokeStyle = '#2ecc71';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.ellipse(width / 2, height / 2, width * 0.45, height * 0.42, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // 2. Draw Pitch (Tan/Clay Color)
+      const pitchWidth = width * 0.16;
+      const pitchHeight = height * 0.7;
+      const pitchX = (width - pitchWidth) / 2;
+      const pitchY = (height - pitchHeight) / 2;
+
+      ctx.fillStyle = '#d3a369';
+      ctx.fillRect(pitchX, pitchY, pitchWidth, pitchHeight);
+      ctx.strokeStyle = '#b88248';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pitchX, pitchY, pitchWidth, pitchHeight);
+
+      // Crease Lines
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      // Top Crease
+      ctx.beginPath();
+      ctx.moveTo(pitchX, pitchY + pitchHeight * 0.15);
+      ctx.lineTo(pitchX + pitchWidth, pitchY + pitchHeight * 0.15);
+      ctx.stroke();
+
+      // Bottom Crease
+      ctx.beginPath();
+      ctx.moveTo(pitchX, pitchY + pitchHeight * 0.85);
+      ctx.lineTo(pitchX + pitchWidth, pitchY + pitchHeight * 0.85);
+      ctx.stroke();
+
+      // 3. Draw Stumps (Top and Bottom)
+      ctx.fillStyle = '#f39c12';
+      // Top Stumps
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(pitchX + pitchWidth * 0.35 + i * 8, pitchY + pitchHeight * 0.1, 4, 15);
+      }
+      // Bottom Stumps
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(pitchX + pitchWidth * 0.35 + i * 8, pitchY + pitchHeight * 0.85 - 15, 4, 15);
       }
 
-      // 2. Draw Players
-      drawWicketKeeper(ctx, canvas.width / 2, 490, bowlingColor);
-      drawFielders(ctx, bowlingColor);
+      // 4. Draw Human Anatomical Batter (Bottom Crease)
+      const batterX = pitchX + pitchWidth * 0.5;
+      const batterY = pitchY + pitchHeight * 0.82;
 
-      const bowlerRunUp = phase === 'BALL_IN_FLIGHT' ? Math.sin(elapsed * 12) * 6 : 0;
-      drawBowler(ctx, canvas.width / 2 - 15, pitchTopY - 20 + bowlerRunUp, bowlingColor, phase);
+      // Head with Visor
+      ctx.fillStyle = '#f1c40f'; // Helmet
+      ctx.beginPath();
+      ctx.arc(batterX, batterY - 25, 8, 0, Math.PI * 2);
+      ctx.fill();
 
-      const batterX = canvas.width / 2 + 12;
-      const batterY = 430;
-      drawBatter(ctx, batterX, batterY, battingColor, batSwingRef.current, phase);
+      // Body / Jersey
+      ctx.fillStyle = '#2980b9';
+      ctx.fillRect(batterX - 6, batterY - 17, 12, 18);
 
-      // 3. Animate Ball Flight
-      if (phase === 'BALL_IN_FLIGHT') {
-        ballProgressRef.current += 0.025;
-        if (ballProgressRef.current > 1) ballProgressRef.current = 1;
+      // Batting Pads
+      ctx.fillStyle = '#ecf0f1';
+      ctx.fillRect(batterX - 7, batterY, 5, 15);
+      ctx.fillRect(batterX + 2, batterY, 5, 15);
 
-        const p = ballProgressRef.current;
-        const startX = canvas.width / 2 - 10;
-        const startY = pitchTopY + 10;
-        let curX = startX + (targetX - startX) * p;
-        let curY = startY + (targetY - startY) * p;
-        let ballHeight = Math.sin(p * Math.PI) * 20;
+      // Bat
+      ctx.strokeStyle = '#8e44ad';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(batterX + 6, batterY - 5);
+      ctx.lineTo(batterX + 16, batterY + 10);
+      ctx.stroke();
 
-        // Bounce path
-        if (p > 0.6) {
-          const p2 = (p - 0.6) / 0.4;
-          curX = targetX + ((canvas.width / 2) - targetX) * p2;
-          curY = targetY + (batterY - targetY) * p2;
-          ballHeight = Math.sin(p2 * Math.PI) * 15;
-        }
+      // 5. Draw Human Anatomical Bowler (Top Crease)
+      const bowlerX = pitchX + pitchWidth * 0.5;
+      const bowlerY = pitchY + pitchHeight * 0.12;
 
-        drawBall(ctx, curX, curY - ballHeight);
+      // Head
+      ctx.fillStyle = '#e67e22';
+      ctx.beginPath();
+      ctx.arc(bowlerX, bowlerY - 10, 7, 0, Math.PI * 2);
+      ctx.fill();
 
-        // Update Batting Timing Bar
-        timingRef.current += 0.035 * timingDirectionRef.current;
-        if (timingRef.current >= 1) {
-          timingRef.current = 1;
-          timingDirectionRef.current = -1;
-        } else if (timingRef.current <= 0) {
-          timingRef.current = 0;
-          timingDirectionRef.current = 1;
-        }
-      } else {
-        ballProgressRef.current = 0;
-      }
+      // Body / Jersey
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(bowlerX - 5, bowlerY - 3, 10, 16);
 
-      // 4. Result Animation
-      if (phase === 'RESULT_SHOWCASE' && lastOutcome) {
-        if (lastOutcome.isWicket) drawWicketExplosion(ctx, canvas.width / 2, 445, elapsed);
-        else if (lastOutcome.runs >= 4) drawBoundaryFireworks(ctx, canvas.width, canvas.height, lastOutcome.runs, elapsed);
-      }
-
-      animFrameRef.current = requestAnimationFrame(render);
+      animationFrameId = requestAnimationFrame(render);
     };
 
-    animFrameRef.current = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [phase, selectedZone, selectedLine, isBowling, lastOutcome, battingColor, bowlingColor]);
+    render();
 
-  const handleHitClick = () => {
-    if (phase !== 'BALL_IN_FLIGHT') return;
-    const score = Math.max(0, 1 - Math.abs(0.82 - timingRef.current) * 2.2);
-    batSwingRef.current = 1;
-    setTimeout(() => { batSwingRef.current = 0; }, 400);
-    onHitShot(shotDirection, shotType, score);
-  };
-
-  const handleDeliverClick = () => {
-    if (phase !== 'AWAITING_DELIVERY') return;
-    onDeliverBall(selectedZone, selectedLine, bowlingSpeed);
-  };
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
 
   return (
-    <div className="cricket-match-container">
-      <div className="match-hud">
-        <div className="hud-team batting">
-          <span className="team-badge" style={{ backgroundColor: battingColor }}>🏏 BAT</span>
-          <span className="team-name">{battingTeamName}</span>
-          <span className="player-highlight">{strikerName}</span>
-        </div>
-        <div className="hud-status">
-          <span className="phase-pill">{phase.replace(/_/g, ' ')}</span>
-        </div>
-        <div className="hud-team bowling">
-          <span className="player-highlight">{bowlerName}</span>
-          <span className="team-name">{bowlingTeamName}</span>
-          <span className="team-badge" style={{ backgroundColor: bowlingColor }}>🎳 BOWL</span>
-        </div>
-      </div>
+    <div className="cricket-canvas-wrapper">
+      <canvas ref={canvasRef} className="match-canvas" />
 
-      <div className="canvas-wrapper">
-        <canvas ref={canvasRef} width={600} height={560} className="cricket-canvas" />
+      {/* Bowling Controls Overlay */}
+      {isBowling && phase === 'AWAITING_DELIVERY' && (
+        <div className="canvas-controls-overlay bowling-controls">
+          <h3>BOWLING CONTROLS ({bowlerName})</h3>
 
-        {isBatting && phase === 'BALL_IN_FLIGHT' && (
-          <div className="timing-meter-overlay">
-            <div className="meter-label">⚡ TIMING METER — TAP HIT WHEN IN GREEN!</div>
-            <div className="meter-track">
-              <div className="sweet-zone" style={{ left: '70%', width: '22%' }} />
-              <div className="meter-needle" style={{ left: `${timingRef.current * 100}%` }} />
-            </div>
-            <div className="shot-controls-inline">
-              <div className="control-group">
-                <button className={`btn-toggle ${shotDirection === 'OFF' ? 'active' : ''}`} onClick={() => setShotDirection('OFF')}>↖ OFF</button>
-                <button className={`btn-toggle ${shotDirection === 'STRAIGHT' ? 'active' : ''}`} onClick={() => setShotDirection('STRAIGHT')}>↑ STRAIGHT</button>
-                <button className={`btn-toggle ${shotDirection === 'LEG' ? 'active' : ''}`} onClick={() => setShotDirection('LEG')}>↗ LEG</button>
-              </div>
-              <div className="control-group">
-                <button className={`btn-toggle ${shotType === 'GROUND' ? 'active' : ''}`} onClick={() => setShotType('GROUND')}>👇 GROUND</button>
-                <button className={`btn-toggle ${shotType === 'LOFTED' ? 'active' : ''}`} onClick={() => setShotType('LOFTED')}>🚀 LOFTED (6)</button>
-              </div>
-              <button className="btn-hit-swing" onClick={handleHitClick}>💥 SWING BAT!</button>
+          <div className="control-group">
+            <label>Length (Zone):</label>
+            <div className="btn-group">
+              {(['YORKER', 'GOOD_LENGTH', 'SHORT', 'FULL_TOSS'] as PitchZone[]).map((zone) => (
+                <button
+                  key={zone}
+                  className={selectedZone === zone ? 'active' : ''}
+                  onClick={() => setSelectedZone(zone)}
+                >
+                  {zone.replace('_', ' ')}
+                </button>
+              ))}
             </div>
           </div>
-        )}
 
-        {isBowling && phase === 'AWAITING_DELIVERY' && (
-          <div className="bowling-tactics-overlay">
-            <h4>🎯 Select Pitch Target</h4>
-            <div className="tactics-row">
-              <button className={selectedZone === 'YORKER' ? 'active' : ''} onClick={() => setSelectedZone('YORKER')}>Yorker</button>
-              <button className={selectedZone === 'GOOD_LENGTH' ? 'active' : ''} onClick={() => setSelectedZone('GOOD_LENGTH')}>Good</button>
-              <button className={selectedZone === 'SHORT' ? 'active' : ''} onClick={() => setSelectedZone('SHORT')}>Short</button>
+          <div className="control-group">
+            <label>Line:</label>
+            <div className="btn-group">
+              {(['OUTSIDE_OFF', 'MIDDLE', 'LEG'] as PitchLine[]).map((line) => (
+                <button
+                  key={line}
+                  className={selectedLine === line ? 'active' : ''}
+                  onClick={() => setSelectedLine(line)}
+                >
+                  {line.replace('_', ' ')}
+                </button>
+              ))}
             </div>
-            <div className="tactics-row">
-              <button className={selectedLine === 'OUTSIDE_OFF' ? 'active' : ''} onClick={() => setSelectedLine('OUTSIDE_OFF')}>Off</button>
-              <button className={selectedLine === 'MIDDLE' ? 'active' : ''} onClick={() => setSelectedLine('MIDDLE')}>Mid</button>
-              <button className={selectedLine === 'LEG' ? 'active' : ''} onClick={() => setSelectedLine('LEG')}>Leg</button>
-            </div>
-            <button className="btn-deliver-ball" onClick={handleDeliverClick}>🎳 BOWL DELIVERY</button>
           </div>
-        )}
-      </div>
 
-      {lastOutcome && (
-        <div className={`outcome-banner ${lastOutcome.isWicket ? 'wicket' : 'runs'}`}>
-          <div className="outcome-title">{lastOutcome.isWicket ? `☝️ OUT! (${lastOutcome.wicketType})` : `🏏 ${lastOutcome.runs} RUNS! [${lastOutcome.shotQuality}]`}</div>
-          <div className="commentary-text">{lastOutcome.commentary}</div>
+          <div className="control-group">
+            <label>Pace: {bowlingSpeed} km/h</label>
+            <input
+              type="range"
+              min="110"
+              max="155"
+              value={bowlingSpeed}
+              onChange={(e) => setBowlingSpeed(Number(e.target.value))}
+            />
+          </div>
+
+          <button className="action-btn deliver-btn" onClick={handleDeliverBall}>
+            DELIVER BALL 🏏
+          </button>
+        </div>
+      )}
+
+      {/* Batting Controls Overlay */}
+      {isBatting && (phase === 'AWAITING_DELIVERY' || phase === 'BALL_IN_FLIGHT') && (
+        <div className="canvas-controls-overlay batting-controls">
+          <h3>BATTING CONTROLS ({strikerName})</h3>
+
+          <div className="control-group">
+            <label>Shot Direction:</label>
+            <div className="btn-group">
+              {(['OFF', 'STRAIGHT', 'LEG'] as ShotDirection[]).map((dir) => (
+                <button
+                  key={dir}
+                  className={selectedDirection === dir ? 'active' : ''}
+                  onClick={() => setSelectedDirection(dir)}
+                >
+                  {dir} SIDE
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="control-group">
+            <label>Shot Elevation:</label>
+            <div className="btn-group">
+              {(['GROUND', 'LOFTED'] as ShotType[]).map((type) => (
+                <button
+                  key={type}
+                  className={selectedShotType === type ? 'active' : ''}
+                  onClick={() => setSelectedShotType(type)}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="control-group">
+            <label>Timing Control: {timing}%</label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={timing}
+              onChange={(e) => setTiming(Number(e.target.value))}
+            />
+          </div>
+
+          <button className="action-btn shot-btn" onClick={handlePlayShot}>
+            PLAY SHOT 💥
+          </button>
         </div>
       )}
     </div>
   );
 };
 
-// Canvas Helper Functions
-function drawStadium(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  const grad = ctx.createRadialGradient(width/2, height/2, 80, width/2, height/2, 340);
-  grad.addColorStop(0, '#2e7d32');
-  grad.addColorStop(1, '#0d3813');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.ellipse(width/2, height/2, width/2 - 20, height/2 - 20, 0, 0, Math.PI*2);
-  ctx.stroke();
-}
-
-function drawPitch(ctx: CanvasRenderingContext2D, width: number, topY: number, bottomY: number, wTop: number, wBottom: number) {
-  const cX = width/2;
-  ctx.fillStyle = '#d7ccc8';
-  ctx.beginPath();
-  ctx.moveTo(cX - wTop/2, topY); ctx.lineTo(cX + wTop/2, topY);
-  ctx.lineTo(cX + wBottom/2, bottomY); ctx.lineTo(cX - wBottom/2, bottomY);
-  ctx.fill();
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(cX - wTop/2 + 6, topY + 25); ctx.lineTo(cX + wTop/2 - 6, topY + 25); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cX - wBottom/2 + 8, bottomY - 30); ctx.lineTo(cX + wBottom/2 - 8, bottomY - 30); ctx.stroke();
-  drawStumps(ctx, cX, topY + 12, 0.7); drawStumps(ctx, cX, bottomY - 15, 1.0);
-}
-
-function drawStumps(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
-  ctx.fillStyle = '#ffb300';
-  for(let i=-1; i<=1; i++) ctx.fillRect(x + i*6*scale - 2*scale, y - 24*scale, 4*scale, 24*scale);
-  ctx.fillStyle = '#d32f2f'; ctx.fillRect(x - 8*scale, y - 27*scale, 16*scale, 3*scale);
-}
-
-function drawPitchTarget(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI*2); ctx.stroke();
-  ctx.fillStyle = 'rgba(250, 204, 21, 0.25)'; ctx.fill();
-}
-
-function drawBatter(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, swing: number, phase: string) {
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = '#fff'; ctx.fillRect(-8, -14, 6, 16); ctx.fillRect(-1, -14, 6, 16);
-  ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(-9, -32, 16, 18, 4); ctx.fill();
-  ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(-1, -38, 7, 0, Math.PI*2); ctx.fill();
-  ctx.save(); ctx.translate(-4, -22); ctx.rotate(swing > 0 ? -Math.PI/1.4 : -Math.PI/6);
-  ctx.fillStyle = '#d7ccc8'; ctx.fillRect(-3, -22, 6, 22); ctx.restore();
-  ctx.restore();
-}
-
-function drawBowler(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, phase: string) {
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = color; ctx.fillRect(-5, -12, 4, 14); ctx.fillRect(1, -12, 4, 14); ctx.fillRect(-6, -26, 12, 15);
-  ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(0, -32, 5, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(4, -24); ctx.lineTo(8, phase==='BALL_IN_FLIGHT'?-42:-20); ctx.stroke();
-  ctx.restore();
-}
-
-function drawWicketKeeper(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = color; ctx.fillRect(-8, -14, 16, 12);
-  ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(0, -20, 6, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
-}
-
-function drawFielders(ctx: CanvasRenderingContext2D, color: string) {
-  const pos = [{x: 100, y: 200}, {x: 480, y: 180}, {x: 80, y: 360}, {x: 520, y: 380}, {x: 300, y: 80}];
-  pos.forEach(p => { ctx.save(); ctx.translate(p.x, p.y); ctx.fillStyle = color; ctx.fillRect(-4, -14, 8, 14); ctx.restore(); });
-}
-
-function drawBall(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2); ctx.fill();
-}
-
-function drawWicketExplosion(ctx: CanvasRenderingContext2D, x: number, y: number, elapsed: number) {
-  const spread = Math.sin(elapsed*10)*15;
-  ctx.fillStyle = '#ffb300'; ctx.fillRect(x-12-spread, y-20-spread, 4, 20); ctx.fillRect(x+12+spread, y-20-spread, 4, 20);
-}
-
-function drawBoundaryFireworks(ctx: CanvasRenderingContext2D, w: number, h: number, runs: number, elapsed: number) {
-  ctx.fillStyle = runs === 6 ? '#facc15' : '#38bdf8'; ctx.font = '900 48px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(runs === 6 ? '🚀 6 SIX!' : '⚡ 4 FOUR!', w/2, h/2-40);
-}
+export default CricketMatchCanvas;
