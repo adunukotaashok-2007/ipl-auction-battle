@@ -1,4 +1,3 @@
-// client/src/components/AuctionScreen.tsx
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import PlayerCard from './PlayerCard';
@@ -8,18 +7,35 @@ import SquadPanel from './SquadPanel';
 import './AuctionScreen.css';
 
 function AuctionScreen() {
-  const { roomData, myTeamId, isHost, pauseAuction, resumeAuction, nextPlayer, endAuction, restartAuction, leaveRoom } = useGame();
+  const { 
+    roomData, 
+    isHost, 
+    pauseAuction, 
+    resumeAuction, 
+    nextPlayer, 
+    skipPlayer,
+    endAuction, 
+    restartAuction, 
+    leaveRoom 
+  } = useGame();
+
   const [sidePanel, setSidePanel] = useState<'leaderboard' | 'squad'>('leaderboard');
-  const [showPanel, setShowPanel] = useState(false);
+  const [showPanel, setShowPanel] = useState<boolean>(false);
 
   if (!roomData) return null;
 
+  const roomCode = roomData.roomCode || (roomData as any).code || '---';
   const auction = roomData.auction;
   const gameState = roomData.gameState;
-  const timer = auction.auctionTimer;
-  const maxTimer = auction.maxTimer;
-  const timerPercent = maxTimer > 0 ? (timer / maxTimer) * 100 : 0;
+
+  // Safe Timer Evaluations
+  const timer = auction ? (auction as any).auctionTimer ?? auction.timer ?? 0 : 0;
+  const maxTimer = auction ? (auction as any).maxTimer ?? 15 : 15;
+  const timerPercent = maxTimer > 0 ? Math.max(0, Math.min(100, (timer / maxTimer) * 100)) : 0;
   const timerColor = timer <= 3 ? '#FF1744' : timer <= 7 ? '#FF9800' : '#4CAF50';
+
+  const currentIndex = (auction as any)?.currentPlayerIndex ?? 0;
+  const totalCount = (auction as any)?.totalPlayers ?? 0;
 
   return (
     <div className="auction-screen">
@@ -27,7 +43,7 @@ function AuctionScreen() {
       <div className="auction-header">
         <div className="auction-header-left">
           <h1 className="auction-logo">🏏 IPL AUCTION</h1>
-          <span className="auction-room-code">Room: {roomData.code}</span>
+          <span className="auction-room-code">Room: {roomCode}</span>
         </div>
 
         <div className="auction-header-center">
@@ -78,11 +94,12 @@ function AuctionScreen() {
 
         <div className="auction-header-right">
           <span className="auction-progress-text">
-            Player {auction.currentPlayerIndex + 1}/{auction.totalPlayers}
+            {totalCount > 0 ? `Player ${currentIndex + 1}/${totalCount}` : 'LIVE AUCTION'}
           </span>
           <button
             className="panel-toggle-btn"
             onClick={() => setShowPanel(!showPanel)}
+            title="Toggle Squads & Leaderboard"
           >
             📊
           </button>
@@ -92,7 +109,7 @@ function AuctionScreen() {
       {/* Main Content */}
       <div className={`auction-main ${showPanel ? 'panel-open' : ''}`}>
         <div className="auction-center">
-          {auction.currentPlayer ? (
+          {auction && auction.currentPlayer ? (
             <>
               <PlayerCard
                 player={auction.currentPlayer}
@@ -122,8 +139,20 @@ function AuctionScreen() {
                     ▶️ Resume
                   </button>
                 )}
+                
+                {/* Skip Player rule: Allowed ONLY before any bids are placed */}
+                <button 
+                  className="btn-host" 
+                  onClick={skipPlayer}
+                  disabled={auction?.highestBidderId !== null}
+                  title={auction?.highestBidderId !== null ? "Cannot skip once bidding has started" : "Skip active player"}
+                  style={{ opacity: auction?.highestBidderId !== null ? 0.5 : 1, cursor: auction?.highestBidderId !== null ? 'not-allowed' : 'pointer' }}
+                >
+                  ⏭️ Skip Player
+                </button>
+
                 <button className="btn-host" onClick={nextPlayer}>
-                  ⏭️ Next Player
+                  ➡️ Next Player
                 </button>
                 <button className="btn-host btn-host-danger" onClick={endAuction}>
                   🏁 End Auction
@@ -184,8 +213,8 @@ function AuctionScreen() {
         </div>
       )}
 
-      {/* Leave button */}
-      <button className="leave-btn-floating" onClick={leaveRoom}>
+      {/* Leave Button */}
+      <button className="leave-btn-floating" onClick={leaveRoom} title="Leave Room">
         🚪
       </button>
     </div>
