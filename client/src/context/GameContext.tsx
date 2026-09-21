@@ -4,31 +4,44 @@ import {
   RoomPublicData, 
   DeliveryInput, 
   ShotInput, 
-  LiveMatchState 
+  LiveMatchState,
+  TeamPublicData,
+  Player
 } from '../types';
 
-interface GameContextType {
+export interface GameContextType {
   roomData: RoomPublicData | null;
+  roomState: RoomPublicData | null;
   matchState: LiveMatchState | null;
   myTeamId: string | null;
   currentTeamId: string | null;
+  myTeam: TeamPublicData | null;
+  isHost: boolean;
   isConnected: boolean;
+  connected: boolean;
   error: string | null;
-  createRoom: (userName: string) => void;
-  joinRoom: (roomCode: string, userName: string) => void;
+  notification: string | null;
+  soldAnimation: { player: Player; teamName: string; price: number } | null;
+  unsoldAnimation: { player: Player } | null;
+  skippedPlayers: string[];
+  clearNotification: () => void;
+  clearError: () => void;
+  createRoom: (userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => void;
+  joinRoom: (roomCode: string, userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => void;
+  leaveRoom: () => void;
   toggleReady: () => void;
   startAuction: () => void;
-  placeBid: (amount: number) => void;
+  placeBid: (amount?: number | any) => void;
   skipPlayer: () => void;
   pauseAuction: () => void;
   resumeAuction: () => void;
   nextPlayer: () => void;
+  endAuction: () => void;
   restartAuction: () => void;
   submitLineup: (playerIds: string[]) => void;
   startMatch: (overs?: number) => void;
   submitDelivery: (delivery: DeliveryInput) => void;
   submitShot: (shot: ShotInput) => void;
-  clearError: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -39,6 +52,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
+  const [soldAnimation, setSoldAnimation] = useState<{ player: Player; teamName: string; price: number } | null>(null);
+  const [unsoldAnimation, setUnsoldAnimation] = useState<{ player: Player } | null>(null);
 
   useEffect(() => {
     function onConnect() {
@@ -80,6 +96,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.matchState) setMatchState(data.matchState);
     }
 
+    function onPlayerSold(data: { player: Player; teamName: string; price: number }) {
+      setSoldAnimation(data);
+      setTimeout(() => setSoldAnimation(null), 3500);
+    }
+
+    function onPlayerUnsold(data: { player: Player }) {
+      setUnsoldAnimation(data);
+      setTimeout(() => setUnsoldAnimation(null), 3000);
+    }
+
+    function onNotification(msg: string) {
+      setNotification(msg);
+      setTimeout(() => setNotification(null), 4000);
+    }
+
     function onError(message: string) {
       setError(message);
       setTimeout(() => setError(null), 5000);
@@ -92,6 +123,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('room-updated', onRoomUpdated);
     socket.on('match-updated', onMatchUpdated);
     socket.on('reconnected', onReconnected);
+    socket.on('player-sold', onPlayerSold);
+    socket.on('player-unsold', onPlayerUnsold);
+    socket.on('notification', onNotification);
     socket.on('error', onError);
 
     return () => {
@@ -102,77 +136,74 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('room-updated', onRoomUpdated);
       socket.off('match-updated', onMatchUpdated);
       socket.off('reconnected', onReconnected);
+      socket.off('player-sold', onPlayerSold);
+      socket.off('player-unsold', onPlayerUnsold);
+      socket.off('notification', onNotification);
       socket.off('error', onError);
     };
   }, [roomData?.code, myTeamId]);
 
-  const createRoom = (userName: string) => {
-    socket.emit('create-room', { userName });
+  const createRoom = (userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
+    socket.emit('create-room', { userName, teamName, teamShortName, teamColor, teamLogo });
   };
 
-  const joinRoom = (roomCode: string, userName: string) => {
-    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), userName });
+  const joinRoom = (roomCode: string, userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
+    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), userName, teamName, teamShortName, teamColor, teamLogo });
   };
 
-  const toggleReady = () => {
-    socket.emit('toggle-ready');
+  const leaveRoom = () => {
+    socket.emit('leave-room');
+    setRoomData(null);
+    setMatchState(null);
+    setMyTeamId(null);
   };
 
-  const startAuction = () => {
-    socket.emit('start-auction');
+  const toggleReady = () => socket.emit('toggle-ready');
+  const startAuction = () => socket.emit('start-auction');
+
+  const placeBid = (amount?: number | any) => {
+    const bidVal = typeof amount === 'number' ? amount : undefined;
+    socket.emit('place-bid', { amount: bidVal });
   };
 
-  const placeBid = (amount: number) => {
-    socket.emit('place-bid', { amount });
-  };
-
-  const skipPlayer = () => {
-    socket.emit('skip-player');
-  };
-
-  const pauseAuction = () => {
-    socket.emit('pause-auction');
-  };
-
-  const resumeAuction = () => {
-    socket.emit('resume-auction');
-  };
-
-  const nextPlayer = () => {
-    socket.emit('next-player');
-  };
-
-  const restartAuction = () => {
-    socket.emit('restart-auction');
-  };
-
-  const submitLineup = (playerIds: string[]) => {
-    socket.emit('submit-lineup', { playerIds });
-  };
-
-  const startMatch = (overs: number = 2) => {
-    socket.emit('start-match', { overs });
-  };
-
-  const submitDelivery = (delivery: DeliveryInput) => {
-    socket.emit('submit-delivery', delivery);
-  };
-
-  const submitShot = (shot: ShotInput) => {
-    socket.emit('submit-shot', shot);
-  };
+  const skipPlayer = () => socket.emit('skip-player');
+  const pauseAuction = () => socket.emit('pause-auction');
+  const resumeAuction = () => socket.emit('resume-auction');
+  const nextPlayer = () => socket.emit('next-player');
+  const endAuction = () => socket.emit('end-auction');
+  const restartAuction = () => socket.emit('restart-auction');
+  const submitLineup = (playerIds: string[]) => socket.emit('submit-lineup', { playerIds });
+  const startMatch = (overs: number = 2) => socket.emit('start-match', { overs });
+  const submitDelivery = (delivery: DeliveryInput) => socket.emit('submit-delivery', delivery);
+  const submitShot = (shot: ShotInput) => socket.emit('submit-shot', shot);
 
   const clearError = () => setError(null);
+  const clearNotification = () => setNotification(null);
 
-  const value = {
+  const myTeam = roomData?.teams.find((t: TeamPublicData) => t.id === myTeamId) || null;
+  const isHost = myTeam?.isHost ?? false;
+  const skippedPlayers: string[] = roomData?.auction?.unsoldPlayers || [];
+
+  const value: GameContextType = {
     roomData,
+    roomState: roomData,
     matchState,
     myTeamId,
     currentTeamId: myTeamId,
+    myTeam,
+    isHost,
     isConnected,
+    connected: isConnected,
     error,
+    notification,
+    soldAnimation,
+    unsoldAnimation,
+    skippedPlayers,
+    clearNotification,
+    clearError,
     createRoom,
     joinRoom,
+    leaveRoom,
     toggleReady,
     startAuction,
     placeBid,
@@ -180,12 +211,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pauseAuction,
     resumeAuction,
     nextPlayer,
+    endAuction,
     restartAuction,
     submitLineup,
     startMatch,
     submitDelivery,
-    submitShot,
-    clearError,
+    submitShot
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
