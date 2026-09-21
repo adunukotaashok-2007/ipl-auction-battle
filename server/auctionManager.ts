@@ -1,4 +1,3 @@
-// server/auctionManager.ts
 import { Room, Player } from './types';
 import { getRoom, getRoomPublicData } from './roomManager';
 import { Server } from 'socket.io';
@@ -39,8 +38,8 @@ export function moveToNextPlayer(roomCode: string, io: Server): void {
   let nextIndex = room.auction.currentPlayerIndex;
   
   if (nextIndex >= room.auctionOrder.length) {
-    // All players processed
-    room.gameState = 'FINISHED';
+    // All players processed -> move to Lineup Selection
+    room.gameState = 'LINEUP_SELECTION';
     io.to(roomCode).emit('room-updated', getRoomPublicData(room));
     io.to(roomCode).emit('auction-finished');
     return;
@@ -76,7 +75,7 @@ export function moveToNextPlayer(roomCode: string, io: Server): void {
     room.auction.currentPlayerIndex++;
     
     if (room.auction.currentPlayerIndex >= room.auctionOrder.length) {
-      room.gameState = 'FINISHED';
+      room.gameState = 'LINEUP_SELECTION';
       io.to(roomCode).emit('room-updated', getRoomPublicData(room));
       io.to(roomCode).emit('auction-finished');
       return;
@@ -165,11 +164,6 @@ export function placeBid(roomCode: string, teamId: string, io: Server): { succes
     return { success: false, error: 'Insufficient purse' };
   }
 
-  // Check minimum remaining purse for remaining slots
-  const remainingSlots = team.maxSquadSize - team.squad.length - 1; // -1 for current player
-  // We don't strictly enforce minimum per slot, but we should ensure they can fill remaining slots at minimum price
-  // For simplicity, just check they can afford this bid
-
   room.auction.currentBid = newBid;
   room.auction.highestBidderId = teamId;
   room.auction.highestBidderName = team.teamName;
@@ -214,7 +208,7 @@ export function skipPlayer(roomCode: string, teamId: string, io: Server): { succ
     return { success: false, error: 'Already skipped this player' };
   }
 
-  // Add to team's skip list (NOT global)
+  // Add to team's skip list
   team.skippedPlayers.push(currentPlayer.id);
 
   io.to(roomCode).emit('player-skipped', {
@@ -243,7 +237,7 @@ export function skipPlayer(roomCode: string, teamId: string, io: Server): { succ
   }
 
   if (!anyCanBid) {
-    // Everyone skipped and no bid placed → UNSOLD
+    // Everyone skipped and no bid placed -> UNSOLD
     clearAuctionTimer(roomCode);
     room.gameState = 'UNSOLD';
     room.auction.auctionedPlayerIds.push(currentPlayer.id);
@@ -278,7 +272,9 @@ function startAuctionTimer(roomCode: string, io: Server): void {
 
     room.auction.auctionTimer--;
 
+    // Broadcast room update every second so client UI reflects live countdown
     io.to(roomCode).emit('timer-update', { timer: room.auction.auctionTimer });
+    io.to(roomCode).emit('room-updated', getRoomPublicData(room));
 
     if (room.auction.auctionTimer <= 0) {
       clearInterval(interval);
@@ -410,7 +406,7 @@ export function endAuction(roomCode: string, teamId: string, io: Server): boolea
   if (room.hostId !== teamId) return false;
 
   clearAuctionTimer(roomCode);
-  room.gameState = 'FINISHED';
+  room.gameState = 'LINEUP_SELECTION';
 
   io.to(roomCode).emit('room-updated', getRoomPublicData(room));
   io.to(roomCode).emit('auction-finished');
