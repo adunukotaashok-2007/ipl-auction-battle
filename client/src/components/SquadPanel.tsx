@@ -1,91 +1,121 @@
-// client/src/components/SquadPanel.tsx
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { TeamPublicData } from '../types';
+import { PurchasedPlayer, TeamPublicData } from '../types';
 import './SquadPanel.css';
 
-function SquadPanel() {
-  const { roomData, myTeamId } = useGame();
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+const SquadPanel: React.FC = () => {
+  const { roomData, myTeamId, submitLineup } = useGame();
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
 
-  if (!roomData) return null;
+  if (!roomData || !myTeamId) return null;
 
-  const viewTeamId = selectedTeamId || myTeamId;
-  const viewTeam = roomData.teams.find((t) => t.id === viewTeamId);
+  const myTeam = roomData.teams.find((t: TeamPublicData) => t.id === myTeamId);
+  if (!myTeam) return null;
 
-  if (!viewTeam) return null;
-
-  const roleCounts = {
-    Batsman: 0,
-    Bowler: 0,
+  // Calculate role composition safely
+  const roleCounts: Record<'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper', number> = {
+    'Batsman': 0,
+    'Bowler': 0,
     'All-Rounder': 0,
-    'Wicket-Keeper': 0,
+    'Wicket-Keeper': 0
   };
 
-  viewTeam.squad.forEach((p) => {
-    if (roleCounts[p.player.role] !== undefined) {
-      roleCounts[p.player.role]++;
+  myTeam.squad.forEach((item: PurchasedPlayer) => {
+    if (roleCounts[item.player.role] !== undefined) {
+      roleCounts[item.player.role] += 1;
     }
   });
 
-  const totalSpent = viewTeam.squad.reduce((sum, p) => sum + p.purchasePrice, 0);
+  const totalSpent = myTeam.squad.reduce((sum: number, item: PurchasedPlayer) => sum + item.purchasePrice, 0);
+
+  const togglePlayerSelection = (playerId: string) => {
+    if (selectedPlayerIds.includes(playerId)) {
+      setSelectedPlayerIds(selectedPlayerIds.filter(id => id !== playerId));
+    } else {
+      setSelectedPlayerIds([...selectedPlayerIds, playerId]);
+    }
+  };
+
+  const handleSubmitLineup = () => {
+    if (selectedPlayerIds.length >= 2) {
+      submitLineup(selectedPlayerIds);
+    }
+  };
 
   return (
     <div className="squad-panel">
-      <div className="squad-team-selector">
-        {roomData.teams
-          .filter((t) => t.isConnected)
-          .map((team) => (
-            <button
-              key={team.id}
-              className={`squad-tab ${(viewTeamId === team.id) ? 'active' : ''}`}
-              onClick={() => setSelectedTeamId(team.id)}
-              style={{
-                borderBottomColor: viewTeamId === team.id ? team.teamColor : 'transparent',
-              }}
-            >
-              {team.teamLogo} {team.teamShortName}
-            </button>
-          ))}
-      </div>
-
-      <div className="squad-header">
-        <div className="squad-team-name">
-          {viewTeam.teamLogo} {viewTeam.teamName}
-          {viewTeam.id === myTeamId && <span className="squad-you-tag">YOU</span>}
+      <div className="squad-header" style={{ borderLeftColor: myTeam.teamColor }}>
+        <div className="team-title">
+          <h2>{myTeam.teamName} Squad</h2>
+          <span className="team-owner">Owner: {myTeam.playerName}</span>
         </div>
-        <div className="squad-meta">
-          <span>Purse: <strong>₹{viewTeam.purse.toFixed(2)} Cr</strong></span>
-          <span>Spent: <strong>₹{totalSpent.toFixed(2)} Cr</strong></span>
-          <span>Squad: <strong>{viewTeam.squadSize}/{viewTeam.maxSquadSize}</strong></span>
+        <div className="squad-summary-stats">
+          <div className="summary-stat">
+            <span className="stat-label">Purse Left</span>
+            <span className="stat-val">₹{(myTeam.purse / 100).toFixed(2)} Cr</span>
+          </div>
+          <div className="summary-stat">
+            <span className="stat-label">Total Spent</span>
+            <span className="stat-val">₹{(totalSpent / 100).toFixed(2)} Cr</span>
+          </div>
+          <div className="summary-stat">
+            <span className="stat-label">Players</span>
+            <span className="stat-val">{myTeam.squad.length} / {myTeam.maxSquadSize}</span>
+          </div>
         </div>
       </div>
 
-      <div className="role-counts">
-        <div className="role-chip">🏏 BAT: {roleCounts.Batsman}</div>
-        <div className="role-chip">🎳 BOWL: {roleCounts.Bowler}</div>
-        <div className="role-chip">⚡ AR: {roleCounts['All-Rounder']}</div>
-        <div className="role-chip">🧤 WK: {roleCounts['Wicket-Keeper']}</div>
+      <div className="roles-bar">
+        <span className="role-badge">Batsmen: {roleCounts['Batsman']}</span>
+        <span className="role-badge">Bowlers: {roleCounts['Bowler']}</span>
+        <span className="role-badge">All-Rounders: {roleCounts['All-Rounder']}</span>
+        <span className="role-badge">WK: {roleCounts['Wicket-Keeper']}</span>
       </div>
 
-      <div className="squad-list">
-        {viewTeam.squad.length === 0 ? (
-          <div className="squad-empty">No players purchased yet</div>
+      {roomData.gameState === 'LINEUP_SELECTION' && (
+        <div className="lineup-selection-controls">
+          <h3>Select Playing XI (Selected: {selectedPlayerIds.length})</h3>
+          <button 
+            className="submit-lineup-btn"
+            disabled={selectedPlayerIds.length < 2}
+            onClick={handleSubmitLineup}
+          >
+            {myTeam.lineupSubmitted ? 'Update Playing Lineup' : 'Confirm Playing Lineup'}
+          </button>
+        </div>
+      )}
+
+      <div className="squad-grid">
+        {myTeam.squad.length === 0 ? (
+          <div className="empty-squad-msg">No players bought yet.</div>
         ) : (
-          viewTeam.squad.map((purchased, index) => (
-            <div key={purchased.player.id} className="squad-player-row">
-              <span className="squad-player-num">{index + 1}</span>
-              <div className="squad-player-info">
-                <span className="squad-player-name">{purchased.player.name}</span>
-                <span className="squad-player-role">{purchased.player.role} • {purchased.player.country}</span>
+          myTeam.squad.map((item: PurchasedPlayer, index: number) => {
+            const isSelected = selectedPlayerIds.includes(item.player.id);
+            return (
+              <div 
+                key={item.player.id || index} 
+                className={`squad-card ${isSelected ? 'selected' : ''}`}
+                onClick={() => roomData.gameState === 'LINEUP_SELECTION' && togglePlayerSelection(item.player.id)}
+              >
+                <div className="card-top">
+                  <span className="player-role-tag">{item.player.role}</span>
+                  <span className="player-country">{item.player.country}</span>
+                </div>
+                <div className="player-name-main">{item.player.name}</div>
+                <div className="ratings-row">
+                  <span>BAT: {item.player.battingRating}</span>
+                  <span>BOWL: {item.player.bowlingRating}</span>
+                </div>
+                <div className="purchase-price-tag">
+                  Bought for ₹{(item.purchasePrice / 100).toFixed(2)} Cr
+                </div>
               </div>
-              <span className="squad-player-price">₹{purchased.purchasePrice.toFixed(2)} Cr</span>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
   );
-}
+};
 
 export default SquadPanel;
