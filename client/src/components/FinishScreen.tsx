@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { TeamPublicData } from '../types';
 import './FinishScreen.css';
 
 const FinishScreen: React.FC = () => {
-  const { roomState, currentTeamId, startMatch, error } = useGame();
+  const { roomData, myTeamId, startMatch, error } = useGame();
   const [selectedOvers, setSelectedOvers] = useState<number>(2);
 
-  if (!roomState) return null;
+  if (!roomData) return null;
 
-  const teams = roomState.teams;
-  const isHost = roomState.hostId === currentTeamId;
+  const teams = roomData.teams;
+  const isHost = roomData.hostId === myTeamId;
 
-  // Check if all teams have submitted a valid lineup (minimum 2 players for a match)
-  const allLineupsSubmitted = teams.every(t => t.lineup && t.lineup.length >= 2);
-  const myTeam = teams.find(t => t.id === currentTeamId);
-  const hasSubmittedLineup = myTeam?.lineup && myTeam.lineup.length >= 2;
+  // Check if all teams submitted lineups
+  const allLineupsSubmitted = teams.every((t: TeamPublicData) => t.lineupSubmitted);
+  const myTeam = teams.find((t: TeamPublicData) => t.id === myTeamId);
 
   const handleStartMatch = () => {
     if (allLineupsSubmitted) {
@@ -22,8 +22,7 @@ const FinishScreen: React.FC = () => {
     }
   };
 
-  // Sort teams by budget remaining or squad size for a "leaderboard" feel
-  const sortedTeams = [...teams].sort((a, b) => b.budget - a.budget);
+  const sortedTeams = [...teams].sort((a, b) => b.purse - a.purse);
 
   return (
     <div className="finish-screen">
@@ -32,14 +31,14 @@ const FinishScreen: React.FC = () => {
         <p className="subtitle">Final Team Standings</p>
 
         <div className="rankings-list">
-          {sortedTeams.map((team, index) => (
-            <div key={team.id} className={`rank-card ${team.id === currentTeamId ? 'my-team' : ''}`}>
+          {sortedTeams.map((team: TeamPublicData, index: number) => (
+            <div key={team.id} className={`rank-card ${team.id === myTeamId ? 'my-team' : ''}`}>
               <div className="rank-pos">#{index + 1}</div>
               <div className="rank-info">
-                <h3>{team.name}</h3>
-                <p>Players: {team.squad.length} | Budget Left: ₹{(team.budget / 100).toFixed(2)} Cr</p>
+                <h3>{team.teamName} ({team.playerName})</h3>
+                <p>Squad Size: {team.squad.length} | Purse Left: ₹{(team.purse / 100).toFixed(2)} Cr</p>
                 <div className="lineup-status">
-                  {team.lineup && team.lineup.length >= 2 ? (
+                  {team.lineupSubmitted ? (
                     <span className="status-ready">Lineup Ready ✓</span>
                   ) : (
                     <span className="status-waiting">Selecting Lineup...</span>
@@ -69,7 +68,7 @@ const FinishScreen: React.FC = () => {
               </div>
 
               {!allLineupsSubmitted && (
-                <p className="warning-text">Waiting for all teams to submit lineups (min 2 players)...</p>
+                <p className="warning-text">Waiting for all teams to submit their Playing XI...</p>
               )}
 
               <button 
@@ -82,10 +81,10 @@ const FinishScreen: React.FC = () => {
             </div>
           ) : (
             <div className="guest-panel">
-              {!hasSubmittedLineup ? (
+              {!myTeam?.lineupSubmitted ? (
                 <p className="instruction">Please finalize your lineup in the Squad Panel!</p>
               ) : (
-                <p className="instruction">Waiting for the host to start the match...</p>
+                <p className="instruction">Waiting for host to configure overs and start match...</p>
               )}
             </div>
           )}
