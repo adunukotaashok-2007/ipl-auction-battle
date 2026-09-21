@@ -67,29 +67,44 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="home-container">
-      <div className="home-card">
-        <h1 className="home-title">IPL AUCTION BATTLE</h1>
-        <p className="home-subtitle">Build your dream squad & battle live on pitch!</p>
+    <div className="home">
+      <div className="home-bg-effects">
+        <div className="bg-circle bg-circle-1" />
+        <div className="bg-circle bg-circle-2" />
+        <div className="bg-circle bg-circle-3" />
+      </div>
+
+      <div className="home-content">
+        <div className="home-logo">🏏</div>
+        <h1 className="home-title">IPL</h1>
+        <div className="home-subtitle">AUCTION BATTLE</div>
+        <p className="home-desc">Build your dream squad & battle live on pitch!</p>
 
         {mode === 'menu' && (
-          <div className="menu-buttons">
-            <button className="btn btn-primary" onClick={() => setMode('create')}>
-              Create Room
-            </button>
-            <button className="btn btn-secondary" onClick={() => setMode('join')}>
-              Join Room
-            </button>
-          </div>
+          <>
+            <div className="home-buttons">
+              <button className="btn btn-primary btn-lg" onClick={() => setMode('create')}>
+                <span className="btn-icon">⚡</span> Create Room
+              </button>
+              <button className="btn btn-secondary btn-lg" onClick={() => setMode('join')}>
+                <span className="btn-icon">🚪</span> Join Room
+              </button>
+            </div>
+            <div className="home-features">
+              <span className="feature">🏏 Realistic Physics</span>
+              <span className="feature">💰 Live Bidding</span>
+              <span className="feature">⚔️ Multiplayer</span>
+            </div>
+          </>
         )}
 
         {(mode === 'create' || mode === 'join') && (
-          <div className="form-wrapper">
-            <button type="button" className="back-btn" onClick={() => setMode('menu')}>
+          <div className="form-container">
+            <button type="button" className="btn-back" onClick={() => setMode('menu')}>
               ← Back
             </button>
 
-            <h2 className="form-header-title">
+            <h2 className="home-title-sm">
               {mode === 'create' ? 'Create Room' : 'Join Room'}
             </h2>
 
@@ -99,7 +114,8 @@ const Home: React.FC = () => {
                   <label>Room Code</label>
                   <input
                     type="text"
-                    placeholder="Enter 6-digit Room Code"
+                    className="input input-code"
+                    placeholder="ENTER 6-LETTER CODE"
                     value={roomCodeInput}
                     onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
                     maxLength={6}
@@ -109,10 +125,11 @@ const Home: React.FC = () => {
               )}
 
               <div className="form-group">
-                <label>Your Name</label>
+                <label>Your Manager Name</label>
                 <input
                   type="text"
-                  placeholder="Enter your manager name"
+                  className="input"
+                  placeholder="Enter your name"
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
                   required
@@ -120,21 +137,24 @@ const Home: React.FC = () => {
               </div>
 
               {/* Team Selector Tabs */}
-              <div className="team-tabs">
-                <button
-                  type="button"
-                  className={`tab-btn ${teamTab === 'ipl' ? 'active' : ''}`}
-                  onClick={() => setTeamTab('ipl')}
-                >
-                  IPL TEAMS
-                </button>
-                <button
-                  type="button"
-                  className={`tab-btn ${teamTab === 'custom' ? 'active' : ''}`}
-                  onClick={() => setTeamTab('custom')}
-                >
-                  CUSTOM TEAM
-                </button>
+              <div className="form-group">
+                <label>Select Team Type</label>
+                <div className="team-tabs">
+                  <button
+                    type="button"
+                    className={`tab-btn ${teamTab === 'ipl' ? 'active' : ''}`}
+                    onClick={() => setTeamTab('ipl')}
+                  >
+                    IPL TEAMS
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-btn ${teamTab === 'custom' ? 'active' : ''}`}
+                    onClick={() => setTeamTab('custom')}
+                  >
+                    CUSTOM TEAM
+                  </button>
+                </div>
               </div>
 
               {teamTab === 'ipl' ? (
@@ -146,7 +166,7 @@ const Home: React.FC = () => {
                         key={team.shortName}
                         className={`preset-card ${isSelected ? 'selected' : ''}`}
                         onClick={() => setSelectedPreset(team)}
-                        style={{ borderColor: isSelected ? team.color : 'rgba(255, 255, 255, 0.1)' }}
+                        style={{ borderColor: isSelected ? team.color : 'rgba(255, 255, 255, 0.15)' }}
                       >
                         <span className="preset-logo">{team.logo}</span>
                         <span className="preset-short">{team.shortName}</span>
@@ -161,6 +181,7 @@ const Home: React.FC = () => {
                     <label>Team Name</label>
                     <input
                       type="text"
+                      className="input"
                       placeholder="e.g. Apex Predators"
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
@@ -173,7 +194,8 @@ const Home: React.FC = () => {
                       <label>Short Name</label>
                       <input
                         type="text"
-                        placeholder="e.g. APX"
+                        className="input"
+                        placeholder="APX"
                         value={customShortName}
                         onChange={(e) => setCustomShortName(e.target.value.toUpperCase())}
                         maxLength={4}
@@ -184,6 +206,7 @@ const Home: React.FC = () => {
                       <label>Color</label>
                       <input
                         type="color"
+                        className="input input-color"
                         value={customColor}
                         onChange={(e) => setCustomColor(e.target.value)}
                       />
@@ -193,6 +216,7 @@ const Home: React.FC = () => {
                       <label>Logo</label>
                       <input
                         type="text"
+                        className="input"
                         placeholder="⚡"
                         value={customLogo}
                         onChange={(e) => setCustomLogo(e.target.value)}
@@ -203,7 +227,7 @@ const Home: React.FC = () => {
                 </div>
               )}
 
-              <button type="submit" className="btn btn-submit">
+              <button type="submit" className="btn btn-primary btn-lg btn-full">
                 {mode === 'create' ? 'Create Room' : 'Join Room'}
               </button>
             </form>
