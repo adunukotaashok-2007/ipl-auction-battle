@@ -85,11 +85,13 @@ const Home: React.FC = () => {
 
         {(mode === 'create' || mode === 'join') && (
           <div className="form-wrapper">
-            <button className="back-btn" onClick={() => setMode('menu')}>
+            <button type="button" className="back-btn" onClick={() => setMode('menu')}>
               ← Back
             </button>
 
-            <h2>{mode === 'create' ? 'Create Room' : 'Join Room'}</h2>
+            <h2 className="form-header-title">
+              {mode === 'create' ? 'Create Room' : 'Join Room'}
+            </h2>
 
             <form onSubmit={mode === 'create' ? handleCreateRoomSubmit : handleJoinRoomSubmit}>
               {mode === 'join' && (
@@ -137,18 +139,21 @@ const Home: React.FC = () => {
 
               {teamTab === 'ipl' ? (
                 <div className="ipl-preset-grid">
-                  {IPL_TEAMS.map((team) => (
-                    <div
-                      key={team.shortName}
-                      className={`preset-card ${selectedPreset.shortName === team.shortName ? 'selected' : ''}`}
-                      onClick={() => setSelectedPreset(team)}
-                      style={{ borderColor: team.color }}
-                    >
-                      <span className="preset-logo">{team.logo}</span>
-                      <span className="preset-short">{team.shortName}</span>
-                      <span className="preset-name">{team.name}</span>
-                    </div>
-                  ))}
+                  {IPL_TEAMS.map((team) => {
+                    const isSelected = selectedPreset.shortName === team.shortName;
+                    return (
+                      <div
+                        key={team.shortName}
+                        className={`preset-card ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setSelectedPreset(team)}
+                        style={{ borderColor: isSelected ? team.color : 'rgba(255, 255, 255, 0.1)' }}
+                      >
+                        <span className="preset-logo">{team.logo}</span>
+                        <span className="preset-short">{team.shortName}</span>
+                        <span className="preset-name">{team.name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="custom-team-inputs">
@@ -176,7 +181,7 @@ const Home: React.FC = () => {
                     </div>
 
                     <div>
-                      <label>Team Color</label>
+                      <label>Color</label>
                       <input
                         type="color"
                         value={customColor}
@@ -185,10 +190,10 @@ const Home: React.FC = () => {
                     </div>
 
                     <div>
-                      <label>Emoji Logo</label>
+                      <label>Logo</label>
                       <input
                         type="text"
-                        placeholder="e.g. ⚡"
+                        placeholder="⚡"
                         value={customLogo}
                         onChange={(e) => setCustomLogo(e.target.value)}
                         maxLength={2}
