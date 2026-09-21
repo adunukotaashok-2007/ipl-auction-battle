@@ -1,6 +1,5 @@
-import { Room, Player } from './types';
-import { getRoom, getRoomPublicData } from './roomManager';
 import { Server } from 'socket.io';
+import { getRoom, getRoomPublicData } from './roomManager';
 
 const auctionTimers = new Map<string, NodeJS.Timeout>();
 
@@ -30,10 +29,10 @@ export function moveToNextPlayer(roomCode: string, io: Server): void {
 
   clearAuctionTimer(roomCode);
 
-  let nextIndex = room.auction.currentPlayerIndex;
+  const nextIndex = room.auction.currentPlayerIndex;
 
   if (nextIndex >= room.auctionOrder.length) {
-    // Auction fully complete → Lineup screen
+    // Auction fully complete -> Lineup selection screen
     room.gameState = 'LINEUP_SELECTION';
     room.auction.currentPlayer = null;
     io.to(roomCode).emit('room-updated', getRoomPublicData(room));
@@ -190,6 +189,7 @@ export function skipPlayer(
   const currentPlayer = room.auction.currentPlayer;
   if (!currentPlayer) return { success: false, error: 'No player in auction' };
 
+  // Rule: Skip allowed ONLY before any bidding starts on the active player
   if (room.auction.highestBidderId !== null) {
     return { success: false, error: 'Cannot skip after bidding has started' };
   }
@@ -260,7 +260,7 @@ function startAuctionTimer(roomCode: string, io: Server): void {
 
     room.auction.auctionTimer--;
 
-    // CRITICAL: broadcast full room state every tick so UI timer moves
+    // Broadcast full room state & timer-update every tick so UI timer animates smoothly
     io.to(roomCode).emit('timer-update', { timer: room.auction.auctionTimer });
     io.to(roomCode).emit('room-updated', getRoomPublicData(room));
 
@@ -381,17 +381,11 @@ export function hostNextPlayer(roomCode: string, teamId: string, io: Server): bo
   return true;
 }
 
-/**
- * END AUCTION — Host only.
- * Works from AUCTION / PLAYER_REVEAL / SOLD / UNSOLD / PAUSED / NEXT_PLAYER.
- * Always transitions to LINEUP_SELECTION so FinishScreen appears.
- */
 export function endAuction(roomCode: string, teamId: string, io: Server): boolean {
   const room = getRoom(roomCode);
   if (!room) return false;
 
   if (room.hostId !== teamId) {
-    // Notify the requester so UI isn't silent
     const team = room.teams.get(teamId);
     if (team?.socketId) {
       const sock = io.sockets.sockets.get(team.socketId);
@@ -400,7 +394,6 @@ export function endAuction(roomCode: string, teamId: string, io: Server): boolea
     return false;
   }
 
-  // Already past auction
   if (room.gameState === 'LINEUP_SELECTION' || room.gameState === 'MATCH_PLAYING' || room.gameState === 'FINISHED') {
     return true;
   }
