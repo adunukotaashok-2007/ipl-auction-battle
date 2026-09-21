@@ -5,7 +5,7 @@ import { TeamPublicData } from '../types';
 import './MatchScreen.css';
 
 export const MatchScreen: React.FC = () => {
-  const { matchState, myTeamId, roomData } = useGame();
+  const { matchState, myTeamId, roomData, submitDelivery, submitShot } = useGame();
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
   useEffect(() => {
@@ -67,6 +67,7 @@ export const MatchScreen: React.FC = () => {
   }
 
   const isBatting = myTeamId === activeInnings.battingTeamId;
+  const isBowling = myTeamId === activeInnings.bowlingTeamId;
 
   return (
     <div className="match-screen">
@@ -117,7 +118,17 @@ export const MatchScreen: React.FC = () => {
 
       {/* Canvas Match Visualizer */}
       <div className="canvas-container">
-        <CricketMatchCanvas />
+        <CricketMatchCanvas 
+          isBatting={isBatting}
+          isBowling={isBowling}
+          phase={matchState.phase}
+          battingTeamName={battingTeam?.teamName || 'Batting Team'}
+          bowlingTeamName={bowlingTeam?.teamName || 'Bowling Team'}
+          strikerName={striker?.name || 'Striker'}
+          bowlerName={bowler?.name || 'Bowler'}
+          onDeliverySubmit={submitDelivery}
+          onShotSubmit={submitShot}
+        />
       </div>
 
       {/* Bottom HUD: Bat/Bowl Stats & Extras Breakdown */}
