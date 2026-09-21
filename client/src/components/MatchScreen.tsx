@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
-import CricketMatchCanvas from './CricketMatchCanvas';
+import { CricketMatchCanvas } from './CricketMatchCanvas';
 import { TeamPublicData } from '../types';
 import './MatchScreen.css';
 
-const MatchScreen: React.FC = () => {
+export const MatchScreen: React.FC = () => {
   const { matchState, myTeamId, roomData } = useGame();
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
@@ -17,7 +17,7 @@ const MatchScreen: React.FC = () => {
 
     if (typeof window.screen.orientation !== 'undefined' && 'lock' in window.screen.orientation) {
       (window.screen.orientation as any).lock('landscape').catch(() => {
-        // Silently fail if browser requires full-screen mode first
+        // Silently fail if orientation lock requires full screen first
       });
     }
 
@@ -30,7 +30,7 @@ const MatchScreen: React.FC = () => {
     return <div className="loading">Initializing Match Engine...</div>;
   }
 
-  // Active innings determination based on your types schema
+  // Active innings determination based on room match state
   const activeInnings = matchState.currentInnings === 1 
     ? matchState.innings1 
     : matchState.innings2;
@@ -138,10 +138,10 @@ const MatchScreen: React.FC = () => {
         </div>
 
         <div className="extras-breakdown">
-          <span className="extra-tag">EXTRAS: {activeInnings.extras.total}</span>
+          <span className="extra-tag">EXTRAS: {activeInnings.extras?.total || 0}</span>
           <div className="extra-details">
-            (W: {activeInnings.extras.wides}, NB: {activeInnings.extras.noBalls}, 
-             B: {activeInnings.extras.byes}, LB: {activeInnings.extras.legByes})
+            (W: {activeInnings.extras?.wides || 0}, NB: {activeInnings.extras?.noBalls || 0}, 
+             B: {activeInnings.extras?.byes || 0}, LB: {activeInnings.extras?.legByes || 0})
           </div>
         </div>
 
@@ -159,7 +159,7 @@ const MatchScreen: React.FC = () => {
         <div className="ball-result-overlay">
           <div className="result-text animate-pop">
             {matchState.lastOutcome.isWicket 
-              ? `WICKET! (${matchState.lastOutcome.wicketType})` 
+              ? `WICKET! (${matchState.lastOutcome.wicketType || 'OUT'})` 
               : matchState.lastOutcome.isExtra 
                 ? matchState.lastOutcome.extraType 
                 : `${matchState.lastOutcome.runs} RUNS`}
