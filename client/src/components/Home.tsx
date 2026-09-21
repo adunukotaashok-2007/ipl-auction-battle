@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { IPL_TEAMS, IPLTeamPreset } from '../types';
 import './Home.css';
@@ -12,13 +12,53 @@ const Home: React.FC = () => {
   const [teamTab, setTeamTab] = useState<'ipl' | 'custom'>('ipl');
 
   // Selected IPL preset
-  const [selectedPreset, setSelectedPreset] = useState<IPLTeamPreset>(IPL_TEAMS[2]); // Default RCB
+  const [selectedPreset, setSelectedPreset] = useState<IPLTeamPreset>(IPL_TEAMS[0]);
 
   // Custom Team state
   const [customName, setCustomName] = useState('');
   const [customShortName, setCustomShortName] = useState('');
-  const [customColor, setCustomColor] = useState('#FFD700');
+  const [customColor, setCustomColor] = useState('#3b82f6');
   const [customLogo, setCustomLogo] = useState('🏏');
+
+  // Audio State & Autoplay Control
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Load IPL Theme sound from public folder
+    const audio = new Audio('/ipl_theme.mp3');
+    audio.loop = true;
+    audio.volume = 0.5;
+    audioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  const handleUserFirstClick = () => {
+    if (!hasInteracted && audioRef.current && !isMuted) {
+      audioRef.current.play().catch(() => {
+        // Ignored if browser blocks audio before direct interaction
+      });
+      setHasInteracted(true);
+    }
+  };
+
+  const toggleSound = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current) return;
+
+    if (isMuted) {
+      audioRef.current.play().catch(() => {});
+      setIsMuted(false);
+    } else {
+      audioRef.current.pause();
+      setIsMuted(true);
+    }
+  };
 
   const getActiveTeamDetails = () => {
     if (teamTab === 'ipl') {
@@ -32,7 +72,7 @@ const Home: React.FC = () => {
     return {
       teamName: customName || 'Custom XI',
       teamShortName: customShortName || customName.substring(0, 3).toUpperCase() || 'CXI',
-      teamColor: customColor || '#FFD700',
+      teamColor: customColor || '#3b82f6',
       teamLogo: customLogo || '🏏',
     };
   };
@@ -67,18 +107,44 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="home">
+    <div className="home" onClick={handleUserFirstClick}>
+      {/* Background Visual Effects */}
       <div className="home-bg-effects">
         <div className="bg-circle bg-circle-1" />
         <div className="bg-circle bg-circle-2" />
         <div className="bg-circle bg-circle-3" />
       </div>
 
+      {/* Floating Sound Toggle Badge */}
+      <button 
+        type="button" 
+        className={`sound-toggle-btn ${isMuted ? 'muted' : 'playing'}`} 
+        onClick={toggleSound}
+      >
+        {isMuted ? '🔇 SOUND OFF' : '🔊 IPL THEME ON'}
+      </button>
+
       <div className="home-content">
+        {/* Cricket Hero Posture Graphic & Branding Header */}
+        <div className="cricket-hero-wrapper">
+          <svg className="cricket-hero-posture" viewBox="0 0 100 100" width="80" height="80">
+            {/* 3D Helmet */}
+            <circle cx="50" cy="22" r="12" fill="#1e3c72" />
+            <path d="M 42 22 L 58 22" stroke="#ffffff" strokeWidth="2" />
+            {/* Batter Torso */}
+            <path d="M 40 34 L 60 34 L 56 60 L 44 60 Z" fill="#2563eb" />
+            {/* Batting Pads */}
+            <rect x="42" y="60" width="6" height="28" rx="2" fill="#ffffff" />
+            <rect x="52" y="60" width="6" height="28" rx="2" fill="#ffffff" />
+            {/* Batting Stance Wooden Bat */}
+            <rect x="60" y="30" width="4" height="40" rx="1" fill="#c19a6b" transform="rotate(-25, 60, 30)" />
+          </svg>
+        </div>
+
         <div className="home-logo">🏏</div>
         <h1 className="home-title">IPL</h1>
         <div className="home-subtitle">AUCTION BATTLE</div>
-        <p className="home-desc">Build your dream squad & battle live on pitch!</p>
+        <p className="home-desc">Build your dream squad &amp; battle live on pitch!</p>
 
         {mode === 'menu' && (
           <>
