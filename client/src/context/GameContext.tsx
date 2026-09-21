@@ -69,16 +69,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsConnected(false);
     }
 
-    function onRoomCreated(data: { roomState: RoomPublicData; teamId: string }) {
-      setRoomData(data.roomState);
+    function onRoomCreated(data: { roomCode: string; teamId: string }) {
       setMyTeamId(data.teamId);
       setError(null);
     }
 
-    function onRoomJoined(data: { roomState: RoomPublicData; teamId: string; matchState?: LiveMatchState }) {
-      setRoomData(data.roomState);
+    function onRoomJoined(data: { teamId: string }) {
       setMyTeamId(data.teamId);
-      if (data.matchState) setMatchState(data.matchState);
       setError(null);
     }
 
@@ -90,10 +87,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setMatchState(state);
     }
 
-    function onReconnected(data: { roomState: RoomPublicData; teamId: string; matchState?: LiveMatchState }) {
-      setRoomData(data.roomState);
+    function onReconnected(data: { teamId: string }) {
       setMyTeamId(data.teamId);
-      if (data.matchState) setMatchState(data.matchState);
     }
 
     function onPlayerSold(data: { player: Player; teamName: string; price: number }) {
@@ -111,7 +106,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTimeout(() => setNotification(null), 4000);
     }
 
-    function onError(message: string) {
+    function onError(data: any) {
+      const message = typeof data === 'string' ? data : data?.message || 'An error occurred';
       setError(message);
       setTimeout(() => setError(null), 5000);
     }
@@ -144,11 +140,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [roomData?.code, myTeamId]);
 
   const createRoom = (userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
-    socket.emit('create-room', { userName, teamName, teamShortName, teamColor, teamLogo });
+    socket.emit('create-room', { 
+      playerName: userName,
+      userName, 
+      teamName: teamName || 'Royal Challengers Bengaluru', 
+      teamShortName: teamShortName || 'RCB', 
+      teamColor: teamColor || '#EC1C24', 
+      teamLogo: teamLogo || '🔴' 
+    });
   };
 
   const joinRoom = (roomCode: string, userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
-    socket.emit('join-room', { roomCode: roomCode.toUpperCase(), userName, teamName, teamShortName, teamColor, teamLogo });
+    socket.emit('join-room', { 
+      roomCode: roomCode.toUpperCase(), 
+      playerName: userName,
+      userName, 
+      teamName: teamName || 'Chennai Super Kings', 
+      teamShortName: teamShortName || 'CSK', 
+      teamColor: teamColor || '#FFFF00', 
+      teamLogo: teamLogo || '🦁' 
+    });
   };
 
   const leaveRoom = () => {
@@ -172,7 +183,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const nextPlayer = () => socket.emit('next-player');
   const endAuction = () => socket.emit('end-auction');
   const restartAuction = () => socket.emit('restart-auction');
-  const submitLineup = (playerIds: string[]) => socket.emit('submit-lineup', { playerIds });
+  const submitLineup = (playerIds: string[]) => socket.emit('submit-lineup', { playingXI: playerIds, impactPlayerId: null });
   const startMatch = (overs: number = 2) => socket.emit('start-match', { overs });
   const submitDelivery = (delivery: DeliveryInput) => socket.emit('submit-delivery', delivery);
   const submitShot = (shot: ShotInput) => socket.emit('submit-shot', shot);
