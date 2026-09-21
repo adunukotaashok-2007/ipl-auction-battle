@@ -1,4 +1,3 @@
-// server/roomManager.ts
 import { v4 as uuidv4 } from 'uuid';
 import {
   Room,
@@ -6,7 +5,6 @@ import {
   RoomPublicData,
   TeamPublicData,
   RoomSettings,
-  Player,
   TeamLineup,
   TeamRanking,
 } from './types';
@@ -355,7 +353,9 @@ export function saveTeamLineup(
     return { success: false, error: 'Lineup already submitted' };
   }
 
-  const squadIds = new Set(team.squad.map((p) => p.player.id));
+  const squadIds = new Set(
+    team.squad.map((item: any) => (item && item.player ? item.player.id : item.id))
+  );
 
   for (const playerId of playingXI) {
     if (!squadIds.has(playerId)) {
@@ -417,7 +417,7 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
       continue;
     }
 
-    const squadPlayers = team.squad.map((s) => s.player);
+    const squadPlayers = team.squad.map((s: any) => (s && s.player ? s.player : s));
     const playingXI = squadPlayers.filter((p) => lineup.playingXI.includes(p.id));
     const impactPlayer = squadPlayers.find((p) => p.id === lineup.impactPlayerId) || null;
 
@@ -439,7 +439,7 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
       continue;
     }
 
-    const overseasCount = playingXI.filter((p) => p.country !== 'India').length;
+    const overseasCount = playingXI.filter((p) => p.country !== 'India' && p.isOverseas).length;
     if (overseasCount > 4) {
       rankings.push({
         teamId: team.id,
@@ -456,8 +456,8 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
       continue;
     }
 
-    const hasWKInSquad = squadPlayers.some((p) => p.role === 'Wicket-Keeper');
-    const hasWKInXI = playingXI.some((p) => p.role === 'Wicket-Keeper');
+    const hasWKInSquad = squadPlayers.some((p) => (p.role || '').toLowerCase().includes('keep') || (p.role || '').toLowerCase().includes('wk'));
+    const hasWKInXI = playingXI.some((p) => (p.role || '').toLowerCase().includes('keep') || (p.role || '').toLowerCase().includes('wk'));
     if (hasWKInSquad && !hasWKInXI) {
       rankings.push({
         teamId: team.id,
@@ -475,17 +475,17 @@ export function calculateRankings(roomCode: string): TeamRanking[] {
     }
 
     const xiAverage =
-      playingXI.reduce((sum, p) => sum + (p.rating || 0), 0) / Math.max(playingXI.length, 1);
+      playingXI.reduce((sum, p) => sum + (p.rating || p.battingRating || 80), 0) / Math.max(playingXI.length, 1);
 
-    const impactBonus = impactPlayer ? (impactPlayer.rating || 0) * 0.2 : 0;
+    const impactBonus = impactPlayer ? (impactPlayer.rating || 80) * 0.2 : 0;
 
     const roles = new Set(playingXI.map((p) => p.role));
     const balanceBonus = roles.size >= 3 ? 10 : 0;
 
     const battingDepth =
-      playingXI.reduce((sum, p) => sum + (p.battingRating || 0), 0) / Math.max(playingXI.length, 1);
+      playingXI.reduce((sum, p) => sum + (p.battingRating || 80), 0) / Math.max(playingXI.length, 1);
     const bowlingDepth =
-      playingXI.reduce((sum, p) => sum + (p.bowlingRating || 0), 0) / Math.max(playingXI.length, 1);
+      playingXI.reduce((sum, p) => sum + (p.bowlingRating || 80), 0) / Math.max(playingXI.length, 1);
     const depthBonus = (battingDepth + bowlingDepth) / 20;
 
     const totalScore = Math.round(xiAverage + impactBonus + balanceBonus + depthBonus);
