@@ -214,6 +214,132 @@
   text-transform: uppercase;
 }
 
+/* ==================================================
+   TEAM SELECTION & GRID EXTENSIONS
+   ================================================== */
+
+.team-tabs {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: #fdcb6e;
+  color: #2d3436;
+  box-shadow: 0 4px 12px rgba(253, 203, 110, 0.3);
+}
+
+.ipl-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-top: 10px;
+}
+
+.ipl-preset-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ipl-preset-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.preset-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.preset-card.selected {
+  background: rgba(108, 92, 231, 0.25);
+  box-shadow: 0 0 12px currentColor;
+}
+
+.preset-logo {
+  font-size: 24px;
+}
+
+.preset-short {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.preset-name {
+  font-size: 10px;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.custom-team-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.row-group {
+  display: flex;
+  gap: 10px;
+}
+
+.row-group > div {
+  flex: 1;
+}
+
+.input-color {
+  padding: 4px;
+  height: 48px;
+  cursor: pointer;
+}
+
+.home-error-msg {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 118, 117, 0.15);
+  border: 1px solid rgba(255, 118, 117, 0.4);
+  border-radius: 10px;
+  color: #ff7675;
+  font-size: 14px;
+}
+
 @media (max-width: 600px) {
   .home {
     padding: 18px;
