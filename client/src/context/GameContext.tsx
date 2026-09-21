@@ -1,17 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { socket } from '../socket';
 import { 
-  RoomState, 
-  Player, 
-  PurchasedPlayer, 
+  RoomPublicData, 
   DeliveryInput, 
   ShotInput, 
   LiveMatchState 
 } from '../types';
 
 interface GameContextType {
-  roomState: RoomState | null;
+  roomData: RoomPublicData | null;
   matchState: LiveMatchState | null;
+  myTeamId: string | null;
   currentTeamId: string | null;
   isConnected: boolean;
   error: string | null;
@@ -35,20 +34,18 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [roomData, setRoomData] = useState<RoomPublicData | null>(null);
   const [matchState, setMatchState] = useState<LiveMatchState | null>(null);
-  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
+  const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     function onConnect() {
       setIsConnected(true);
-      // Attempt to rejoin if we have existing state
-      const savedRoomCode = roomState?.code;
-      const savedTeamId = currentTeamId;
-      if (savedRoomCode && savedTeamId) {
-        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: savedTeamId });
+      const savedRoomCode = roomData?.code;
+      if (savedRoomCode && myTeamId) {
+        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: myTeamId });
       }
     }
 
@@ -56,36 +53,35 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsConnected(false);
     }
 
-    function onRoomCreated(data: { roomState: RoomState; teamId: string }) {
-      setRoomState(data.roomState);
-      setCurrentTeamId(data.teamId);
+    function onRoomCreated(data: { roomState: RoomPublicData; teamId: string }) {
+      setRoomData(data.roomState);
+      setMyTeamId(data.teamId);
       setError(null);
     }
 
-    function onRoomJoined(data: { roomState: RoomState; teamId: string; matchState?: LiveMatchState }) {
-      setRoomState(data.roomState);
-      setCurrentTeamId(data.teamId);
+    function onRoomJoined(data: { roomState: RoomPublicData; teamId: string; matchState?: LiveMatchState }) {
+      setRoomData(data.roomState);
+      setMyTeamId(data.teamId);
       if (data.matchState) setMatchState(data.matchState);
       setError(null);
     }
 
-    function onRoomUpdated(state: RoomState) {
-      setRoomState(state);
+    function onRoomUpdated(state: RoomPublicData) {
+      setRoomData(state);
     }
 
     function onMatchUpdated(state: LiveMatchState) {
       setMatchState(state);
     }
 
-    function onReconnected(data: { roomState: RoomState; teamId: string; matchState?: LiveMatchState }) {
-      setRoomState(data.roomState);
-      setCurrentTeamId(data.teamId);
+    function onReconnected(data: { roomState: RoomPublicData; teamId: string; matchState?: LiveMatchState }) {
+      setRoomData(data.roomState);
+      setMyTeamId(data.teamId);
       if (data.matchState) setMatchState(data.matchState);
     }
 
     function onError(message: string) {
       setError(message);
-      // Clear error after 5 seconds
       setTimeout(() => setError(null), 5000);
     }
 
@@ -108,7 +104,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('reconnected', onReconnected);
       socket.off('error', onError);
     };
-  }, [roomState?.code, currentTeamId]);
+  }, [roomData?.code, myTeamId]);
 
   const createRoom = (userName: string) => {
     socket.emit('create-room', { userName });
@@ -169,9 +165,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearError = () => setError(null);
 
   const value = {
-    roomState,
+    roomData,
     matchState,
-    currentTeamId,
+    myTeamId,
+    currentTeamId: myTeamId,
     isConnected,
     error,
     createRoom,
