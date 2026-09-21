@@ -1,4 +1,3 @@
-// client/src/App.tsx
 import React from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import Home from './components/Home';
@@ -10,7 +9,16 @@ import SoldAnimation from './components/SoldAnimation';
 import './App.css';
 
 function AppContent() {
-  const { roomData, notification, soldAnimation, unsoldAnimation, connected, clearNotification } = useGame();
+  const {
+    roomData,
+    notification,
+    soldAnimation,
+    unsoldAnimation,
+    connected,
+    clearNotification,
+    error,
+    clearError,
+  } = useGame();
 
   const renderScreen = () => {
     if (!roomData) return <Home />;
@@ -22,8 +30,19 @@ function AppContent() {
       case 'MATCH_PLAYING':
         return <MatchScreen />;
 
+      // End Auction + natural auction complete both land here
+      case 'LINEUP_SELECTION':
       case 'FINISHED':
         return <FinishScreen />;
+
+      // All live auction phases
+      case 'AUCTION':
+      case 'PLAYER_REVEAL':
+      case 'SOLD':
+      case 'UNSOLD':
+      case 'NEXT_PLAYER':
+      case 'PAUSED':
+        return <AuctionScreen />;
 
       default:
         return <AuctionScreen />;
@@ -42,6 +61,12 @@ function AppContent() {
       {notification && (
         <div className="notification" onClick={clearNotification}>
           {notification}
+        </div>
+      )}
+
+      {error && (
+        <div className="notification error-notification" onClick={clearError}>
+          ⚠️ {error}
         </div>
       )}
 
