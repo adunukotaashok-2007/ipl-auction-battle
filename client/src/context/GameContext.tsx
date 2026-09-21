@@ -49,8 +49,8 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [roomData, setRoomData] = useState<RoomPublicData | null>(null);
   const [matchState, setMatchState] = useState<LiveMatchState | null>(null);
-  const [myTeamId, setMyTeamId] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(socket.connected);
+  const [myTeamId, setMyTeamId] = useState<string | null>(() => localStorage.getItem('ipl_team_id'));
+  const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [soldAnimation, setSoldAnimation] = useState<{ player: Player; teamName: string; price: number } | null>(null);
@@ -59,9 +59,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     function onConnect() {
       setIsConnected(true);
-      const savedRoomCode = roomData?.code;
-      if (savedRoomCode && myTeamId) {
-        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: myTeamId });
+      const savedRoomCode = localStorage.getItem('ipl_room_code') || roomData?.roomCode || (roomData as any)?.code;
+      const savedTeamId = localStorage.getItem('ipl_team_id') || myTeamId;
+      const savedUserName = localStorage.getItem('ipl_user_name') || 'Manager';
+
+      if (savedRoomCode && savedTeamId) {
+        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: savedTeamId, userName: savedUserName });
+        socket.emit('join-room', { 
+          roomCode: savedRoomCode, 
+          teamId: savedTeamId, 
+          playerName: savedUserName, 
+          userName: savedUserName 
+        });
       }
     }
 
@@ -69,18 +78,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsConnected(false);
     }
 
-    function onRoomCreated(data: { roomCode: string; teamId: string }) {
+    function onRoomCreated(data: { roomCode?: string; code?: string; teamId: string }) {
+      const activeCode = data.roomCode || data.code || '';
+      if (activeCode) localStorage.setItem('ipl_room_code', activeCode);
+      if (data.teamId) localStorage.setItem('ipl_team_id', data.teamId);
       setMyTeamId(data.teamId);
       setError(null);
     }
 
-    function onRoomJoined(data: { teamId: string }) {
+    function onRoomJoined(data: { roomCode?: string; code?: string; teamId: string }) {
+      const activeCode = data.roomCode || data.code || '';
+      if (activeCode) localStorage.setItem('ipl_room_code', activeCode);
+      if (data.teamId) localStorage.setItem('ipl_team_id', data.teamId);
       setMyTeamId(data.teamId);
       setError(null);
     }
 
     function onRoomUpdated(state: RoomPublicData) {
       setRoomData(state);
+      const activeCode = state.roomCode || (state as any).code;
+      if (activeCode) localStorage.setItem('ipl_room_code', activeCode);
     }
 
     function onMatchUpdated(state: LiveMatchState) {
@@ -89,6 +106,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     function onReconnected(data: { teamId: string }) {
       setMyTeamId(data.teamId);
+      localStorage.setItem('ipl_team_id', data.teamId);
     }
 
     function onPlayerSold(data: { player: Player; teamName: string; price: number }) {
@@ -124,6 +142,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('notification', onNotification);
     socket.on('error', onError);
 
+    if (socket.connected) {
+      onConnect();
+    }
+
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
@@ -137,9 +159,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('notification', onNotification);
       socket.off('error', onError);
     };
-  }, [roomData?.code, myTeamId]);
+  }, []);
+
+  const getActiveRoomCode = () => roomData?.roomCode || (roomData as any)?.code || localStorage.getItem('ipl_room_code') || '';
 
   const createRoom = (userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
+    localStorage.setItem('ipl_user_name', userName);
     socket.emit('create-room', { 
       playerName: userName,
       userName, 
@@ -151,8 +176,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const joinRoom = (roomCode: string, userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
+    const cleanCode = roomCode.trim().toUpperCase();
+    localStorage.setItem('ipl_room_code', cleanCode);
+    localStorage.setItem('ipl_user_name', userName);
     socket.emit('join-room', { 
-      roomCode: roomCode.toUpperCase(), 
+      roomCode: cleanCode, 
       playerName: userName,
       userName, 
       teamName: teamName || 'Chennai Super Kings', 
@@ -163,37 +191,88 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const leaveRoom = () => {
-    socket.emit('leave-room');
+    socket.emit('leave-room', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+    localStorage.removeItem('ipl_room_code');
+    localStorage.removeItem('ipl_team_id');
+    localStorage.removeItem('ipl_user_name');
     setRoomData(null);
     setMatchState(null);
     setMyTeamId(null);
   };
 
-  const toggleReady = () => socket.emit('toggle-ready');
-  const startAuction = () => socket.emit('start-auction');
+  const toggleReady = () => {
+    socket.emit('toggle-ready', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const startAuction = () => {
+    socket.emit('start-auction', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
 
   const placeBid = (amount?: number | any) => {
     const bidVal = typeof amount === 'number' ? amount : undefined;
-    socket.emit('place-bid', { amount: bidVal });
+    socket.emit('place-bid', { 
+      roomCode: getActiveRoomCode(), 
+      teamId: myTeamId, 
+      amount: bidVal, 
+      bidAmount: bidVal 
+    });
   };
 
-  const skipPlayer = () => socket.emit('skip-player');
-  const pauseAuction = () => socket.emit('pause-auction');
-  const resumeAuction = () => socket.emit('resume-auction');
-  const nextPlayer = () => socket.emit('next-player');
-  const endAuction = () => socket.emit('end-auction');
-  const restartAuction = () => socket.emit('restart-auction');
-  const submitLineup = (playerIds: string[]) => socket.emit('submit-lineup', { playingXI: playerIds, impactPlayerId: null });
-  const startMatch = (overs: number = 2) => socket.emit('start-match', { overs });
-  const submitDelivery = (delivery: DeliveryInput) => socket.emit('submit-delivery', delivery);
-  const submitShot = (shot: ShotInput) => socket.emit('submit-shot', shot);
+  const skipPlayer = () => {
+    socket.emit('skip-player', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const pauseAuction = () => {
+    socket.emit('pause-auction', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const resumeAuction = () => {
+    socket.emit('resume-auction', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const nextPlayer = () => {
+    socket.emit('next-player', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const endAuction = () => {
+    socket.emit('end-auction', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const restartAuction = () => {
+    socket.emit('restart-auction', { roomCode: getActiveRoomCode(), teamId: myTeamId });
+  };
+
+  const submitLineup = (playerIds: string[]) => {
+    socket.emit('submit-lineup', { 
+      roomCode: getActiveRoomCode(), 
+      teamId: myTeamId, 
+      playingXI: playerIds, 
+      lineup: playerIds, 
+      impactPlayerId: null 
+    });
+  };
+
+  const startMatch = (overs: number = 2) => {
+    socket.emit('start-match', { roomCode: getActiveRoomCode(), teamId: myTeamId, overs });
+  };
+
+  const submitDelivery = (delivery: DeliveryInput) => {
+    socket.emit('submit-delivery', { roomCode: getActiveRoomCode(), teamId: myTeamId, ...delivery });
+  };
+
+  const submitShot = (shot: ShotInput) => {
+    socket.emit('submit-shot', { roomCode: getActiveRoomCode(), teamId: myTeamId, ...shot });
+  };
 
   const clearError = () => setError(null);
   const clearNotification = () => setNotification(null);
 
   const myTeam = roomData?.teams.find((t: TeamPublicData) => t.id === myTeamId) || null;
-  const isHost = myTeam?.isHost ?? false;
-  const skippedPlayers: string[] = roomData?.auction?.unsoldPlayers || [];
+  const isHost = (roomData?.hostId === myTeamId) || (myTeam?.isHost ?? false);
+
+  const skippedPlayers: string[] = (roomData?.auction?.unsoldPlayers || []).map((p: any) => 
+    typeof p === 'string' ? p : p.id || p.name
+  );
 
   const value: GameContextType = {
     roomData,
