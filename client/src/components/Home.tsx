@@ -1,130 +1,214 @@
-// client/src/components/Home.tsx
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import TeamSelector from './TeamSelector';
+import { IPL_TEAMS, IPLTeamPreset } from '../types';
 import './Home.css';
 
-function Home() {
-  const { createRoom, joinRoom } = useGame();
+const Home: React.FC = () => {
+  const { createRoom, joinRoom, error } = useGame();
+
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
-  const [playerName, setPlayerName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState<{
-    name: string;
-    shortName: string;
-    color: string;
-    logo: string;
-  } | null>(null);
+  const [userName, setUserName] = useState('');
+  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [teamTab, setTeamTab] = useState<'ipl' | 'custom'>('ipl');
 
-  const handleCreate = () => {
-    if (!playerName.trim() || !selectedTeam) return;
+  // Selected IPL preset
+  const [selectedPreset, setSelectedPreset] = useState<IPLTeamPreset>(IPL_TEAMS[2]); // Default RCB
+
+  // Custom Team state
+  const [customName, setCustomName] = useState('');
+  const [customShortName, setCustomShortName] = useState('');
+  const [customColor, setCustomColor] = useState('#FFD700');
+  const [customLogo, setCustomLogo] = useState('🏏');
+
+  const getActiveTeamDetails = () => {
+    if (teamTab === 'ipl') {
+      return {
+        teamName: selectedPreset.name,
+        teamShortName: selectedPreset.shortName,
+        teamColor: selectedPreset.color,
+        teamLogo: selectedPreset.logo,
+      };
+    }
+    return {
+      teamName: customName || 'Custom XI',
+      teamShortName: customShortName || customName.substring(0, 3).toUpperCase() || 'CXI',
+      teamColor: customColor || '#FFD700',
+      teamLogo: customLogo || '🏏',
+    };
+  };
+
+  const handleCreateRoomSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName.trim()) return;
+
+    const team = getActiveTeamDetails();
     createRoom(
-      playerName.trim(),
-      selectedTeam.name,
-      selectedTeam.shortName,
-      selectedTeam.color,
-      selectedTeam.logo
+      userName.trim(),
+      team.teamName,
+      team.teamShortName,
+      team.teamColor,
+      team.teamLogo
     );
   };
 
-  const handleJoin = () => {
-    if (!playerName.trim() || !selectedTeam || !roomCode.trim()) return;
+  const handleJoinRoomSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName.trim() || !roomCodeInput.trim()) return;
+
+    const team = getActiveTeamDetails();
     joinRoom(
-      roomCode.trim().toUpperCase(),
-      playerName.trim(),
-      selectedTeam.name,
-      selectedTeam.shortName,
-      selectedTeam.color,
-      selectedTeam.logo
+      roomCodeInput.trim().toUpperCase(),
+      userName.trim(),
+      team.teamName,
+      team.teamShortName,
+      team.teamColor,
+      team.teamLogo
     );
   };
 
-  if (mode === 'menu') {
-    return (
-      <div className="home">
-        <div className="home-bg-effects">
-          <div className="bg-circle bg-circle-1"></div>
-          <div className="bg-circle bg-circle-2"></div>
-          <div className="bg-circle bg-circle-3"></div>
-        </div>
-        <div className="home-content">
-          <div className="home-logo">🏏</div>
-          <h1 className="home-title">IPL AUCTION</h1>
-          <h2 className="home-subtitle">BATTLE</h2>
-          <p className="home-desc">Real-time multiplayer cricket auction game</p>
-          <div className="home-buttons">
-            <button className="btn btn-primary btn-lg" onClick={() => setMode('create')}>
-              <span className="btn-icon">🏟️</span>
+  return (
+    <div className="home-container">
+      <div className="home-card">
+        <h1 className="home-title">IPL AUCTION BATTLE</h1>
+        <p className="home-subtitle">Build your dream squad & battle live on pitch!</p>
+
+        {mode === 'menu' && (
+          <div className="menu-buttons">
+            <button className="btn btn-primary" onClick={() => setMode('create')}>
               Create Room
             </button>
-            <button className="btn btn-secondary btn-lg" onClick={() => setMode('join')}>
-              <span className="btn-icon">🎮</span>
+            <button className="btn btn-secondary" onClick={() => setMode('join')}>
               Join Room
             </button>
           </div>
-          <div className="home-features">
-            <div className="feature">👥 Up to 10 Players</div>
-            <div className="feature">⚡ Real-time Bidding</div>
-            <div className="feature">🏆 60 Cricket Stars</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  return (
-    <div className="home">
-      <div className="home-bg-effects">
-        <div className="bg-circle bg-circle-1"></div>
-        <div className="bg-circle bg-circle-2"></div>
-      </div>
-      <div className="home-content">
-        <button className="btn-back" onClick={() => { setMode('menu'); setSelectedTeam(null); }}>
-          ← Back
-        </button>
+        {(mode === 'create' || mode === 'join') && (
+          <div className="form-wrapper">
+            <button className="back-btn" onClick={() => setMode('menu')}>
+              ← Back
+            </button>
 
-        <h1 className="home-title-sm">
-          {mode === 'create' ? '🏟️ Create Room' : '🎮 Join Room'}
-        </h1>
+            <h2>{mode === 'create' ? 'Create Room' : 'Join Room'}</h2>
 
-        <div className="form-group">
-          <label>Your Name</label>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            maxLength={20}
-            className="input"
-          />
-        </div>
+            <form onSubmit={mode === 'create' ? handleCreateRoomSubmit : handleJoinRoomSubmit}>
+              {mode === 'join' && (
+                <div className="form-group">
+                  <label>Room Code</label>
+                  <input
+                    type="text"
+                    placeholder="Enter 6-digit Room Code"
+                    value={roomCodeInput}
+                    onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                    maxLength={6}
+                    required
+                  />
+                </div>
+              )}
 
-        {mode === 'join' && (
-          <div className="form-group">
-            <label>Room Code</label>
-            <input
-              type="text"
-              placeholder="Enter 6-digit room code"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              maxLength={6}
-              className="input input-code"
-            />
+              <div className="form-group">
+                <label>Your Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter your manager name"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Team Selector Tabs */}
+              <div className="team-tabs">
+                <button
+                  type="button"
+                  className={`tab-btn ${teamTab === 'ipl' ? 'active' : ''}`}
+                  onClick={() => setTeamTab('ipl')}
+                >
+                  IPL TEAMS
+                </button>
+                <button
+                  type="button"
+                  className={`tab-btn ${teamTab === 'custom' ? 'active' : ''}`}
+                  onClick={() => setTeamTab('custom')}
+                >
+                  CUSTOM TEAM
+                </button>
+              </div>
+
+              {teamTab === 'ipl' ? (
+                <div className="ipl-preset-grid">
+                  {IPL_TEAMS.map((team) => (
+                    <div
+                      key={team.shortName}
+                      className={`preset-card ${selectedPreset.shortName === team.shortName ? 'selected' : ''}`}
+                      onClick={() => setSelectedPreset(team)}
+                      style={{ borderColor: team.color }}
+                    >
+                      <span className="preset-logo">{team.logo}</span>
+                      <span className="preset-short">{team.shortName}</span>
+                      <span className="preset-name">{team.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="custom-team-inputs">
+                  <div className="form-group">
+                    <label>Team Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Apex Predators"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      required={teamTab === 'custom'}
+                    />
+                  </div>
+
+                  <div className="form-group row-group">
+                    <div>
+                      <label>Short Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. APX"
+                        value={customShortName}
+                        onChange={(e) => setCustomShortName(e.target.value.toUpperCase())}
+                        maxLength={4}
+                      />
+                    </div>
+
+                    <div>
+                      <label>Team Color</label>
+                      <input
+                        type="color"
+                        value={customColor}
+                        onChange={(e) => setCustomColor(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label>Emoji Logo</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ⚡"
+                        value={customLogo}
+                        onChange={(e) => setCustomLogo(e.target.value)}
+                        maxLength={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" className="btn btn-submit">
+                {mode === 'create' ? 'Create Room' : 'Join Room'}
+              </button>
+            </form>
           </div>
         )}
 
-        <TeamSelector onSelect={setSelectedTeam} selected={selectedTeam} />
-
-        <button
-          className="btn btn-primary btn-lg btn-full"
-          onClick={mode === 'create' ? handleCreate : handleJoin}
-          disabled={!playerName.trim() || !selectedTeam || (mode === 'join' && !roomCode.trim())}
-        >
-          {mode === 'create' ? 'Create Room' : 'Join Room'}
-        </button>
+        {error && <div className="home-error-msg">{error}</div>}
       </div>
     </div>
   );
-}
+};
 
 export default Home;
