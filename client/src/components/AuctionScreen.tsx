@@ -24,7 +24,7 @@ function AuctionScreen() {
 
   if (!roomData) return null;
 
-  const roomCode = roomData.roomCode || (roomData as any).code || '---';
+  const roomCode = (roomData as any).code || roomData.roomCode || '---';
   const auction = roomData.auction;
   const gameState = roomData.gameState;
 
