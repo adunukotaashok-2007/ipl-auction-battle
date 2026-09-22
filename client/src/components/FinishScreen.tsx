@@ -22,10 +22,6 @@ export const FinishScreen: React.FC = () => {
   const [lineupLocked, setLineupLocked] = useState(false);
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
-  /*
-   * Keep roomData nullable until after all hooks.
-   * This avoids React Rules-of-Hooks problems.
-   */
   const teams = roomData?.teams || [];
 
   const hostCheck =
@@ -34,15 +30,6 @@ export const FinishScreen: React.FC = () => {
   const myTeam =
     teams.find((team: TeamPublicData) => team.id === myTeamId) || null;
 
-  /*
-   * Convert either:
-   * { player: Player, price: number }
-   *
-   * or:
-   * Player
-   *
-   * into a Player object.
-   */
   const getPlayerFromSquadItem = (item: any) => {
     if (!item) {
       return null;
@@ -55,26 +42,12 @@ export const FinishScreen: React.FC = () => {
     return item;
   };
 
-  /*
-   * Get all player IDs from my squad.
-   */
   const mySquadPlayerIds = useMemo(() => {
     return (myTeam?.squad || [])
       .map((item: any) => getPlayerFromSquadItem(item)?.id)
       .filter((id): id is string => Boolean(id));
   }, [myTeam]);
 
-  /*
-   * Prefill the selection once.
-   *
-   * If squad <= 11:
-   * select all.
-   *
-   * If squad > 11:
-   * select first 11.
-   *
-   * The user can then freely change the selection.
-   */
   useEffect(() => {
     if (hasPrefilled) {
       return;
@@ -102,10 +75,6 @@ export const FinishScreen: React.FC = () => {
     selectedPlayerIds.length,
   ]);
 
-  /*
-   * If the server already says the lineup is submitted,
-   * lock the UI.
-   */
   useEffect(() => {
     if (!myTeam) {
       return;
@@ -122,9 +91,6 @@ export const FinishScreen: React.FC = () => {
     }
   }, [myTeam]);
 
-  /*
-   * Get remaining purse.
-   */
   const getPurseLeft = (
     team: TeamPublicData
   ): number => {
@@ -144,11 +110,6 @@ export const FinishScreen: React.FC = () => {
     return 0;
   };
 
-  /*
-   * Determine whether a team is ready.
-   *
-   * Empty squads automatically pass.
-   */
   const isTeamReady = (
     team: TeamPublicData
   ): boolean => {
@@ -167,22 +128,13 @@ export const FinishScreen: React.FC = () => {
     );
   };
 
-  /*
-   * True only when every team is ready.
-   */
   const allLineupsSubmitted =
     teams.length > 0 &&
     teams.every(isTeamReady);
 
-  /*
-   * Current player's lineup status.
-   */
   const myLineupAlreadyIn =
     !!myTeam && isTeamReady(myTeam);
 
-  /*
-   * Select / deselect a player.
-   */
   const togglePlayerSelection = (
     playerId: string
   ) => {
@@ -195,21 +147,12 @@ export const FinishScreen: React.FC = () => {
     }
 
     setSelectedPlayerIds((previous) => {
-      /*
-       * Deselect.
-       */
       if (previous.includes(playerId)) {
         return previous.filter(
           (id) => id !== playerId
         );
       }
 
-      /*
-       * Maximum Playing XI = 11.
-       *
-       * If squad has fewer than 11,
-       * maximum is squad size.
-       */
       const maxPick = Math.min(
         11,
         Math.max(
@@ -229,9 +172,6 @@ export const FinishScreen: React.FC = () => {
     });
   };
 
-  /*
-   * Select all players, maximum 11.
-   */
   const selectAllSquad = () => {
     if (
       lineupLocked ||
@@ -247,9 +187,6 @@ export const FinishScreen: React.FC = () => {
     );
   };
 
-  /*
-   * Clear current selection.
-   */
   const clearSelection = () => {
     if (
       lineupLocked ||
@@ -261,12 +198,6 @@ export const FinishScreen: React.FC = () => {
     setSelectedPlayerIds([]);
   };
 
-  /*
-   * Submit Playing XI.
-   *
-   * Empty selection is allowed only
-   * when the squad itself is empty.
-   */
   const handleConfirmLineup = () => {
     if (
       mySquadPlayerIds.length > 0 &&
@@ -279,12 +210,6 @@ export const FinishScreen: React.FC = () => {
     setLineupLocked(true);
   };
 
-  /*
-   * Host can start the match.
-   *
-   * Server remains responsible for
-   * final validation.
-   */
   const handleStartMatch = () => {
     if (!hostCheck) {
       return;
@@ -293,18 +218,12 @@ export const FinishScreen: React.FC = () => {
     startMatch(selectedOvers);
   };
 
-  /*
-   * Sort teams by purse.
-   */
   const sortedTeams = [...teams].sort(
     (a, b) =>
       getPurseLeft(b) -
       getPurseLeft(a)
   );
 
-  /*
-   * Currently selected rival.
-   */
   const activeRival =
     teams.find(
       (team) =>
@@ -313,9 +232,6 @@ export const FinishScreen: React.FC = () => {
           teams[0]?.id)
     ) || null;
 
-  /*
-   * Currency formatting.
-   */
   const formatCr = (
     value: number
   ): string => {
@@ -324,9 +240,6 @@ export const FinishScreen: React.FC = () => {
     ).toFixed(2)} Cr`;
   };
 
-  /*
-   * Purse display.
-   */
   const formatPurseDisplay = (
     team: TeamPublicData
   ): string => {
@@ -345,9 +258,6 @@ export const FinishScreen: React.FC = () => {
     return formatCr(raw);
   };
 
-  /*
-   * Confirm button state.
-   */
   const isConfirmDisabled =
     (
       mySquadPlayerIds.length > 0 &&
@@ -356,9 +266,6 @@ export const FinishScreen: React.FC = () => {
     lineupLocked ||
     myLineupAlreadyIn;
 
-  /*
-   * Early return AFTER all hooks.
-   */
   if (!roomData) {
     return null;
   }
@@ -369,9 +276,7 @@ export const FinishScreen: React.FC = () => {
 
       <div className="finish-container">
 
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
+        {/* HEADER */}
 
         <div className="finish-header">
           <div className="trophy-badge">
@@ -387,9 +292,7 @@ export const FinishScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* =====================================================
-            TABS
-        ===================================================== */}
+        {/* TABS */}
 
         <div
           className="finish-tabs"
@@ -444,9 +347,7 @@ export const FinishScreen: React.FC = () => {
           </button>
         </div>
 
-        {/* =====================================================
-            STANDINGS
-        ===================================================== */}
+        {/* STANDINGS */}
 
         {activeTab === 'standings' && (
           <div className="rankings-container">
@@ -462,7 +363,6 @@ export const FinishScreen: React.FC = () => {
                   team: TeamPublicData,
                   index: number
                 ) => {
-
                   const rankIcon =
                     index === 0
                       ? '🥇'
@@ -492,7 +392,6 @@ export const FinishScreen: React.FC = () => {
                           '#3b82f6',
                       }}
                     >
-
                       <div className="rank-badge">
                         {rankIcon}
                       </div>
@@ -571,9 +470,7 @@ export const FinishScreen: React.FC = () => {
           </div>
         )}
 
-        {/* =====================================================
-            RIVALS
-        ===================================================== */}
+        {/* RIVALS */}
 
         {activeTab === 'rivals' && (
           <div className="rivals-container">
@@ -640,7 +537,6 @@ export const FinishScreen: React.FC = () => {
                           'pointer',
                       }}
                     >
-
                       {team.teamLogo ||
                         '🏏'}{' '}
 
@@ -650,7 +546,6 @@ export const FinishScreen: React.FC = () => {
                       myTeamId
                         ? ' (YOU)'
                         : ''}
-
                     </button>
                   );
                 }
@@ -722,8 +617,227 @@ export const FinishScreen: React.FC = () => {
 
                   {(activeRival.squad ||
                     []).map(
+                      (
+                        item: PurchasedPlayer | any,
+                        index: number
+                      ) => {
+
+                        const player =
+                          getPlayerFromSquadItem(
+                            item
+                          );
+
+                        if (!player) {
+                          return null;
+                        }
+
+                        const price =
+                          typeof item.price ===
+                          'number'
+                            ? item.price
+                            : typeof item.purchasePrice ===
+                              'number'
+                            ? item.purchasePrice
+                            : null;
+
+                        return (
+                          <div
+                            key={
+                              player.id ||
+                              index
+                            }
+                            className="rival-player-row"
+                            style={{
+                              display: 'flex',
+                              justifyContent:
+                                'space-between',
+                              gap: 8,
+                              padding:
+                                '8px 10px',
+                              borderBottom:
+                                '1px solid rgba(255,255,255,0.06)',
+                            }}
+                          >
+
+                            <span>
+                              #{index + 1}
+                            </span>
+
+                            <span
+                              style={{
+                                flex: 1,
+                              }}
+                            >
+                              {player.name}{' '}
+                              {player.isOverseas
+                                ? '✈️'
+                                : ''}
+                            </span>
+
+                            <span
+                              style={{
+                                opacity: 0.8,
+                              }}
+                            >
+                              {player.role}
+                            </span>
+
+                            {price !== null && (
+                              <span
+                                style={{
+                                  color:
+                                    '#4ade80',
+                                }}
+                              >
+                                {formatCr(
+                                  price
+                                )}
+                              </span>
+                            )}
+
+                          </div>
+                        );
+                      }
+                    )}
+
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* MY PLAYING XI */}
+
+        {activeTab === 'lineup' &&
+          myTeam && (
+            <div
+              className="lineup-builder-card"
+              style={{
+                borderColor:
+                  myTeam.teamColor ||
+                  '#3b82f6',
+              }}
+            >
+
+              <div
+                className="builder-header"
+                style={{
+                  display: 'flex',
+                  justifyContent:
+                    'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
+
+                <div>
+
+                  <h3
+                    style={{
+                      margin: 0,
+                    }}
+                  >
+                    🏏 YOUR Playing XI (
+                    {myTeam.teamName})
+                  </h3>
+
+                  <p
+                    style={{
+                      margin:
+                        '4px 0 0 0',
+                      opacity: 0.8,
+                    }}
+                  >
+                    Tap players to select or
+                    deselect. Squad size:{' '}
+                    {mySquadPlayerIds.length}.
+                    You can confirm with any
+                    number of players (1–11).
+                  </p>
+
+                </div>
+
+                {!lineupLocked &&
+                  !myLineupAlreadyIn &&
+                  mySquadPlayerIds.length >
+                    0 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 8,
+                      }}
+                    >
+
+                      <button
+                        type="button"
+                        onClick={
+                          selectAllSquad
+                        }
+                        style={{
+                          padding:
+                            '6px 12px',
+                          borderRadius: 6,
+                          background:
+                            '#3b82f6',
+                          color: '#fff',
+                          border: 'none',
+                          fontWeight: 600,
+                          cursor:
+                            'pointer',
+                        }}
+                      >
+                        Select All
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          clearSelection
+                        }
+                        style={{
+                          padding:
+                            '6px 12px',
+                          borderRadius: 6,
+                          background:
+                            'rgba(255,255,255,0.1)',
+                          color: '#fff',
+                          border:
+                            '1px solid rgba(255,255,255,0.2)',
+                          fontWeight: 600,
+                          cursor:
+                            'pointer',
+                        }}
+                      >
+                        Clear
+                      </button>
+
+                    </div>
+                  )}
+
+              </div>
+
+              {/* EMPTY SQUAD */}
+
+              {(myTeam.squad || [])
+                .length === 0 ? (
+
+                <p className="empty-squad-notice">
+                  No players bought. Confirm
+                  empty XI or wait — host can
+                  still start.
+                </p>
+
+              ) : (
+
+                <div className="squad-selector-grid">
+
+                  {(myTeam.squad as any[]).map(
                     (
-                      item: PurchasedPlayer | any,
+                      item:
+                        | PurchasedPlayer
+                        | any,
                       index: number
                     ) => {
 
@@ -736,69 +850,69 @@ export const FinishScreen: React.FC = () => {
                         return null;
                       }
 
-                      const price =
-                        typeof item.price ===
-                        'number'
-                          ? item.price
-                          : typeof item.purchasePrice ===
-                            'number'
-                          ? item.purchasePrice
-                          : null;
+                      const playerId =
+                        player.id;
+
+                      const isSelected =
+                        selectedPlayerIds.includes(
+                          playerId
+                        );
 
                       return (
                         <div
                           key={
-                            player.id ||
+                            playerId ||
                             index
                           }
-                          className="rival-player-row"
+                          className={`squad-select-pill ${
+                            isSelected
+                              ? 'selected'
+                              : ''
+                          }`}
+                          onClick={() =>
+                            togglePlayerSelection(
+                              playerId
+                            )
+                          }
                           style={{
-                            display: 'flex',
-                            justifyContent:
-                              'space-between',
-                            gap: 8,
-                            padding:
-                              '8px 10px',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.06)',
+                            opacity:
+                              lineupLocked ||
+                              myLineupAlreadyIn
+                                ? 0.75
+                                : 1,
+                            cursor:
+                              lineupLocked ||
+                              myLineupAlreadyIn
+                                ? 'default'
+                                : 'pointer',
+                            outline:
+                              isSelected
+                                ? '2px solid #22c55e'
+                                : undefined,
                           }}
                         >
 
-                          <span>
-                            #{index + 1}
-                          </span>
-
-                          <span
-                            style={{
-                              flex: 1,
-                            }}
-                          >
-                            {player.name}{' '}
-                            {player.isOverseas
-                              ? '✈️'
-                              : ''}
-                          </span>
-
-                          <span
-                            style={{
-                              opacity: 0.8,
-                            }}
-                          >
-                            {player.role}
-                          </span>
-
-                          {price !== null && (
-                            <span
-                              style={{
-                                color:
-                                  '#4ade80',
-                              }}
-                            >
-                              {formatCr(
-                                price
+                          <span className="pill-role">
+                            {(
+                              player.role ||
+                              'PLY'
+                            )
+                              .toString()
+                              .substring(
+                                0,
+                                3
                               )}
-                            </span>
-                          )}
+                          </span>
+
+                          <span className="pill-name">
+                            {player.name}
+                          </span>
+
+                          <span className="pill-check">
+                            {isSelected
+                              ? '✓'
+                              : '+'}
+                          </span>
 
                         </div>
                       );
@@ -806,282 +920,58 @@ export const FinishScreen: React.FC = () => {
                   )}
 
                 </div>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* =====================================================
-            MY PLAYING XI
-        ===================================================== */}
-
-        {activeTab === 'lineup' &&
-          myTeam && (
-          <div
-            className="lineup-builder-card"
-            style={{
-              borderColor:
-                myTeam.teamColor ||
-                '#3b82f6',
-            }}
-          >
-
-            <div
-              className="builder-header"
-              style={{
-                display: 'flex',
-                justifyContent:
-                  'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 8,
-              }}
-            >
-
-              <div>
-
-                <h3
-                  style={{
-                    margin: 0,
-                  }}
-                >
-                  🏏 YOUR Playing XI (
-                  {myTeam.teamName})
-                </h3>
-
-                <p
-                  style={{
-                    margin:
-                      '4px 0 0 0',
-                    opacity: 0.8,
-                  }}
-                >
-                  Tap players to select or
-                  deselect. Squad size:{' '}
-                  {mySquadPlayerIds.length}.
-                  You can confirm with any
-                  number of players (1–11).
-                </p>
-
-              </div>
-
-              {!lineupLocked &&
-                !myLineupAlreadyIn &&
-                mySquadPlayerIds.length >
-                  0 && (
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 8,
-                  }}
-                >
-
-                  <button
-                    type="button"
-                    onClick={
-                      selectAllSquad
-                    }
-                    style={{
-                      padding:
-                        '6px 12px',
-                      borderRadius: 6,
-                      background:
-                        '#3b82f6',
-                      color: '#fff',
-                      border: 'none',
-                      fontWeight: 600,
-                      cursor:
-                        'pointer',
-                    }}
-                  >
-                    Select All
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      clearSelection
-                    }
-                    style={{
-                      padding:
-                        '6px 12px',
-                      borderRadius: 6,
-                      background:
-                        'rgba(255,255,255,0.1)',
-                      color: '#fff',
-                      border:
-                        '1px solid rgba(255,255,255,0.2)',
-                      fontWeight: 600,
-                      cursor:
-                        'pointer',
-                    }}
-                  >
-                    Clear
-                  </button>
-
-                </div>
               )}
 
-            </div>
+              {/* FOOTER */}
 
-            {/* EMPTY SQUAD */}
+              <div className="builder-footer">
 
-            {(myTeam.squad || [])
-              .length === 0 ? (
+                <span className="selected-count">
+                  Selected:{' '}
+                  <strong>
+                    {selectedPlayerIds.length}
+                  </strong>{' '}
+                  /{' '}
+                  {mySquadPlayerIds.length}{' '}
+                  players
+                </span>
 
-              <p className="empty-squad-notice">
-                No players bought. Confirm
-                empty XI or wait — host can
-                still start.
-              </p>
+                {lineupLocked ||
+                myLineupAlreadyIn ? (
 
-            ) : (
+                  <div
+                    className="badge-ready"
+                    style={{
+                      padding:
+                        '10px 16px',
+                    }}
+                  >
+                    ✅ Playing XI Confirmed
+                    — waiting for host
+                  </div>
 
-              <div className="squad-selector-grid">
+                ) : (
 
-                {(myTeam.squad as any[]).map(
-                  (
-                    item:
-                      | PurchasedPlayer
-                      | any,
-                    index: number
-                  ) => {
-
-                    const player =
-                      getPlayerFromSquadItem(
-                        item
-                      );
-
-                    if (!player) {
-                      return null;
+                  <button
+                    className="confirm-lineup-btn"
+                    disabled={
+                      isConfirmDisabled
                     }
+                    onClick={
+                      handleConfirmLineup
+                    }
+                  >
+                    CONFIRM MY PLAYING XI ✓
+                  </button>
 
-                    const playerId =
-                      player.id;
-
-                    const isSelected =
-                      selectedPlayerIds.includes(
-                        playerId
-                      );
-
-                    return (
-                      <div
-                        key={
-                          playerId ||
-                          index
-                        }
-                        className={`squad-select-pill ${
-                          isSelected
-                            ? 'selected'
-                            : ''
-                        }`}
-                        onClick={() =>
-                          togglePlayerSelection(
-                            playerId
-                          )
-                        }
-                        style={{
-                          opacity:
-                            lineupLocked ||
-                            myLineupAlreadyIn
-                              ? 0.75
-                              : 1,
-                          cursor:
-                            lineupLocked ||
-                            myLineupAlreadyIn
-                              ? 'default'
-                              : 'pointer',
-                          outline:
-                            isSelected
-                              ? '2px solid #22c55e'
-                              : undefined,
-                        }}
-                      >
-
-                        <span className="pill-role">
-                          {(
-                            player.role ||
-                            'PLY'
-                          )
-                            .toString()
-                            .substring(
-                              0,
-                              3
-                            )}
-                        </span>
-
-                        <span className="pill-name">
-                          {player.name}
-                        </span>
-
-                        <span className="pill-check">
-                          {isSelected
-                            ? '✓'
-                            : '+'}
-                        </span>
-
-                      </div>
-                    );
-                  }
                 )}
 
               </div>
-            )}
-
-            {/* FOOTER */}
-
-            <div className="builder-footer">
-
-              <span className="selected-count">
-                Selected:{' '}
-                <strong>
-                  {selectedPlayerIds.length}
-                </strong>{' '}
-                /{' '}
-                {mySquadPlayerIds.length}{' '}
-                players
-              </span>
-
-              {lineupLocked ||
-              myLineupAlreadyIn ? (
-
-                <div
-                  className="badge-ready"
-                  style={{
-                    padding:
-                      '10px 16px',
-                  }}
-                >
-                  ✅ Playing XI Confirmed
-                  — waiting for host
-                </div>
-
-              ) : (
-
-                <button
-                  className="confirm-lineup-btn"
-                  disabled={
-                    isConfirmDisabled
-                  }
-                  onClick={
-                    handleConfirmLineup
-                  }
-                >
-                  CONFIRM MY PLAYING XI ✓
-                </button>
-
-              )}
 
             </div>
+          )}
 
-          </div>
-        )}
-
-        {/* =====================================================
-            HOST MATCH LAUNCHER
-        ===================================================== */}
+        {/* HOST MATCH LAUNCHER */}
 
         <div className="match-launcher-card">
 
@@ -1107,25 +997,24 @@ export const FinishScreen: React.FC = () => {
 
                   {[2, 5, 10, 20].map(
                     (overs) => (
-
-                    <button
-                      key={overs}
-                      type="button"
-                      className={`over-btn ${
-                        selectedOvers ===
-                        overs
-                          ? 'active'
-                          : ''
-                      }`}
-                      onClick={() =>
-                        setSelectedOvers(
+                      <button
+                        key={overs}
+                        type="button"
+                        className={`over-btn ${
+                          selectedOvers ===
                           overs
-                        )
-                      }
-                    >
-                      {overs} OVERS
-                    </button>
-
+                            ? 'active'
+                            : ''
+                        }`}
+                        onClick={() =>
+                          setSelectedOvers(
+                            overs
+                          )
+                        }
+                      >
+                        {overs} OVERS
+                      </button>
+                    )
                   )}
 
                 </div>
@@ -1192,9 +1081,7 @@ export const FinishScreen: React.FC = () => {
 
         </div>
 
-        {/* =====================================================
-            ERROR
-        ===================================================== */}
+        {/* ERROR */}
 
         {error && (
           <div className="finish-error-toast">
