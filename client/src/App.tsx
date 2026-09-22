@@ -20,7 +20,6 @@ function AppContent() {
     clearError,
   } = useGame();
 
-  // Mobile Landscape / Portrait Check
   const [isPortrait, setIsPortrait] = useState<boolean>(
     window.innerHeight > window.innerWidth && window.innerWidth < 768
   );
@@ -36,20 +35,14 @@ function AppContent() {
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Attempt orientation lock on supported mobile browsers.
-    // Some TypeScript DOM versions don't expose `lock`,
-    // so we safely extend the type here.
-    const orientation = window.screen?.orientation as
-      | (ScreenOrientation & {
-          lock?: (
-            orientation: OrientationLockType
-          ) => Promise<void>;
-        })
-      | undefined;
+    // Attempt orientation lock on supported mobile browsers
+    const orientation = window.screen?.orientation as ScreenOrientation & {
+      lock?: (orientation: string) => Promise<void>;
+    };
 
     if (orientation?.lock) {
       orientation.lock('landscape').catch(() => {
-        // Browser may block orientation lock.
+        // Browser may block orientation lock
       });
     }
 
@@ -60,9 +53,7 @@ function AppContent() {
   }, []);
 
   const renderScreen = () => {
-    if (!roomData) {
-      return <Home />;
-    }
+    if (!roomData) return <Home />;
 
     switch (roomData.gameState) {
       case 'LOBBY':
@@ -90,7 +81,7 @@ function AppContent() {
 
   return (
     <div className="app">
-      {/* Mobile Orientation Overlay */}
+
       {isPortrait && (
         <div
           className="portrait-warning-overlay"
@@ -137,13 +128,12 @@ function AppContent() {
               maxWidth: '300px',
             }}
           >
-            IPL Auction Battle is optimized for Landscape view
-            for full field &amp; auction visibility.
+            IPL Auction Battle is optimized for Landscape view for full field
+            &amp; auction visibility.
           </p>
         </div>
       )}
 
-      {/* Connection Banner */}
       {!connected && (
         <div className="connection-banner">
           <div className="connection-dot"></div>
@@ -151,7 +141,6 @@ function AppContent() {
         </div>
       )}
 
-      {/* Notifications */}
       {notification && (
         <div
           className="notification"
@@ -161,7 +150,6 @@ function AppContent() {
         </div>
       )}
 
-      {/* Errors */}
       {error && (
         <div
           className="notification error-notification"
@@ -171,7 +159,6 @@ function AppContent() {
         </div>
       )}
 
-      {/* Sold Animation */}
       {soldAnimation && soldAnimation.player && (
         <SoldAnimation
           playerName={soldAnimation.player.name}
@@ -181,7 +168,6 @@ function AppContent() {
         />
       )}
 
-      {/* Unsold Animation */}
       {unsoldAnimation && unsoldAnimation.player && (
         <SoldAnimation
           playerName={unsoldAnimation.player.name}
