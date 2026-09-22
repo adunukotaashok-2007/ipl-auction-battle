@@ -59,12 +59,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     function onConnect() {
       setIsConnected(true);
-      const savedRoomCode = localStorage.getItem('ipl_room_code') || roomData?.roomCode || (roomData as any)?.code;
+      const savedRoomCode = localStorage.getItem('ipl_room_code') || (roomData as any)?.code || roomData?.roomCode;
       const savedTeamId = localStorage.getItem('ipl_team_id') || myTeamId;
       const savedUserName = localStorage.getItem('ipl_user_name') || 'Manager';
 
       if (savedRoomCode && savedTeamId) {
-        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: savedTeamId, userName: savedUserName });
+        socket.emit('rejoin-room', { roomCode: savedRoomCode, teamId: savedTeamId, userName: savedUserName, playerName: savedUserName });
         socket.emit('join-room', { 
           roomCode: savedRoomCode, 
           teamId: savedTeamId, 
@@ -96,7 +96,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     function onRoomUpdated(state: RoomPublicData) {
       setRoomData(state);
-      const activeCode = state.roomCode || (state as any).code;
+      const activeCode = (state as any)?.code || state.roomCode;
       if (activeCode) localStorage.setItem('ipl_room_code', activeCode);
     }
 
@@ -161,7 +161,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const getActiveRoomCode = () => roomData?.roomCode || (roomData as any)?.code || localStorage.getItem('ipl_room_code') || '';
+  const getActiveRoomCode = () => (roomData as any)?.code || roomData?.roomCode || localStorage.getItem('ipl_room_code') || '';
 
   const createRoom = (userName: string, teamName?: string, teamShortName?: string, teamColor?: string, teamLogo?: string) => {
     localStorage.setItem('ipl_user_name', userName);
