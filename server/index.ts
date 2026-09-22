@@ -26,11 +26,8 @@ import {
   getSocketMapping,
   getRoomPublicData,
   saveTeamLineup,
-  allTeamsLineupReady,
   calculateRankings,
   resetAllLineups,
-  rooms,
-  socketToRoom,
 } from './roomManager';
 
 import {
@@ -42,16 +39,19 @@ import {
 import {
   DeliveryInput,
   ShotInput,
-  TeamLineup,
   Player,
+  TeamLineup,
 } from './types';
 
 import {
-  auctionBid,
   startAuction,
+  placeBid,
   pauseAuction,
   resumeAuction,
-  skipCurrentPlayer,
+  skipPlayer,
+  hostNextPlayer,
+  endAuction,
+  restartAuction,
 } from './auctionManager';
 
 
@@ -111,23 +111,24 @@ const httpServer =
    SOCKET.IO
 ========================================================= */
 
-const io = new Server(
-  httpServer,
-  {
-    cors: {
-      origin: [
-        CLIENT_URL,
-        'http://localhost:5173',
-        'http://localhost:3000',
-      ],
-      methods: [
-        'GET',
-        'POST',
-      ],
-      credentials: true,
-    },
-  }
-);
+const io =
+  new Server(
+    httpServer,
+    {
+      cors: {
+        origin: [
+          CLIENT_URL,
+          'http://localhost:5173',
+          'http://localhost:3000',
+        ],
+        methods: [
+          'GET',
+          'POST',
+        ],
+        credentials: true,
+      },
+    }
+  );
 
 
 /* =========================================================
@@ -144,7 +145,7 @@ const liveMatches =
 
 function emitRoomUpdate(
   roomCode: string
-) {
+): void {
   const room =
     getRoom(roomCode);
 
@@ -159,32 +160,6 @@ function emitRoomUpdate(
 }
 
 
-function getTeamFromRoom(
-  room: any,
-  teamId: string
-) {
-  if (!room?.teams) {
-    return undefined;
-  }
-
-  if (
-    typeof room.teams.get ===
-    'function'
-  ) {
-    return room.teams.get(teamId);
-  }
-
-  if (Array.isArray(room.teams)) {
-    return room.teams.find(
-      (team: any) =>
-        team.id === teamId
-    );
-  }
-
-  return undefined;
-}
-
-
 function getRoomTeams(
   room: any
 ): any[] {
@@ -192,60 +167,24 @@ function getRoomTeams(
     return [];
   }
 
-  if (
-    typeof room.teams.values ===
-    'function'
-  ) {
-    return Array.from(
-      room.teams.values()
-    );
-  }
-
-  if (Array.isArray(room.teams)) {
-    return room.teams;
-  }
-
-  return [];
-}
-
-
-function getPlayerFromTeam(
-  team: any,
-  playerId: string
-): Player | null {
-  if (!team?.squad) {
-    return null;
-  }
-
-  const purchased =
-    team.squad.find(
-      (item: any) =>
-        item?.player?.id === playerId ||
-        item?.id === playerId
-    );
-
-  if (!purchased) {
-    return null;
-  }
-
-  return (
-    purchased.player ||
-    purchased ||
-    null
+  return Array.from(
+    room.teams.values()
   );
 }
 
 
 function getCurrentInnings(
   match: any
-) {
+): any | null {
   if (
     match.currentInnings === 1
   ) {
-    return match.innings1;
+    return match.innings1 ||
+      null;
   }
 
-  return match.innings2;
+  return match.innings2 ||
+    null;
 }
 
 
@@ -259,13 +198,14 @@ function getCurrentBatter(
     return null;
   }
 
-  const player =
+  return (
     innings.battingLineup?.find(
-      (p: Player) =>
-        p.id === innings.strikerId
-    );
-
-  return player || null;
+      (player: Player) =>
+        player.id ===
+        innings.strikerId
+    ) ||
+    null
+  );
 }
 
 
@@ -279,21 +219,21 @@ function getCurrentBowler(
     return null;
   }
 
-  const player =
+  return (
     innings.bowlingLineup?.find(
-      (p: Player) =>
-        p.id ===
+      (player: Player) =>
+        player.id ===
         innings.currentBowlerId
-    );
-
-  return player || null;
+    ) ||
+    null
+  );
 }
 
 
 function broadcastMatch(
   roomCode: string,
   match: any
-) {
+): void {
   io.to(roomCode).emit(
     'match-updated',
     match
@@ -307,10 +247,14 @@ function broadcastMatch(
 
 app.get(
   '/health',
-  (_req: Request, res: Response) => {
+  (
+    _req: Request,
+    res: Response
+  ) => {
     res.json({
       status: 'ok',
-      service: 'ipl-auction-battle',
+      service:
+        'ipl-auction-battle',
       timestamp:
         new Date().toISOString(),
     });
@@ -324,7 +268,10 @@ app.get(
 
 app.get(
   '/',
-  (_req: Request, res: Response) => {
+  (
+    _req: Request,
+    res: Response
+  ) => {
     res.json({
       message:
         'IPL Auction Battle Server',
@@ -341,6 +288,7 @@ app.get(
 io.on(
   'connection',
   (socket) => {
+
     console.log(
       `Socket connected: ${socket.id}`
     );
@@ -352,7 +300,10 @@ io.on(
 
     socket.on(
       'create-room',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const playerName =
             String(
@@ -375,15 +326,29 @@ io.on(
                 .toUpperCase()
             ).trim();
 
+          const teamColor =
+            String(
+              payload.teamColor ||
+              '#1976d2'
+            );
+
+          const teamLogo =
+            String(
+              payload.teamLogo ||
+              ''
+            );
+
+          /*
+           * createRoom takes exactly 6 arguments.
+           */
           const result =
             createRoom(
               socket.id,
               playerName,
               teamName,
               teamShortName,
-              payload.teamColor,
-              payload.teamLogo,
-              payload.settings
+              teamColor,
+              teamLogo
             );
 
           if (!result) {
@@ -393,42 +358,16 @@ io.on(
                 'Failed to create room.',
             };
 
-            if (callback) {
-              callback(response);
-            }
-
-            socket.emit(
-              'error-message',
-              response
-            );
-
+            callback?.(response);
             return;
           }
 
           const roomCode =
-            result.roomCode ||
-            result.code;
+            result.roomCode;
 
-          if (!roomCode) {
-            const response = {
-              success: false,
-              error:
-                'Room was created but no room code was returned.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          socket.join(roomCode);
-
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
+          socket.join(
+            roomCode
+          );
 
           const room =
             getRoom(roomCode);
@@ -437,18 +376,18 @@ io.on(
             success: true,
             roomCode,
             teamId:
-              mapping?.teamId ||
-              room?.hostId ||
-              null,
+              result.teamId,
             room:
               room
-                ? getRoomPublicData(room)
+                ? getRoomPublicData(
+                    room
+                  )
                 : null,
           };
 
-          if (callback) {
-            callback(response);
-          }
+          callback?.(
+            response
+          );
 
           socket.emit(
             'room-created',
@@ -462,28 +401,20 @@ io.on(
           console.log(
             `Room created: ${roomCode}`
           );
+
         } catch (error) {
           console.error(
             'create-room error:',
             error
           );
 
-          const response = {
+          callback?.({
             success: false,
             error:
               error instanceof Error
                 ? error.message
                 : 'Failed to create room.',
-          };
-
-          if (callback) {
-            callback(response);
-          }
-
-          socket.emit(
-            'error-message',
-            response
-          );
+          });
         }
       }
     );
@@ -495,7 +426,10 @@ io.on(
 
     socket.on(
       'join-room',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const roomCode =
             String(
@@ -527,57 +461,65 @@ io.on(
                 .toUpperCase()
             ).trim();
 
+          const teamColor =
+            String(
+              payload.teamColor ||
+              '#1976d2'
+            );
+
+          const teamLogo =
+            String(
+              payload.teamLogo ||
+              ''
+            );
+
           if (!roomCode) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Room code is required.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
+          /*
+           * joinRoom actual signature:
+           *
+           * joinRoom(
+           *   socketId,
+           *   roomCode,
+           *   playerName,
+           *   teamName,
+           *   teamShortName,
+           *   teamColor,
+           *   teamLogo
+           * )
+           */
           const result =
             joinRoom(
-              roomCode,
               socket.id,
+              roomCode,
               playerName,
               teamName,
               teamShortName,
-              payload.teamColor,
-              payload.teamLogo
+              teamColor,
+              teamLogo
             );
 
-          if (!result?.success) {
-            const response = {
+          if (result.error) {
+            callback?.({
               success: false,
               error:
-                result?.error ||
-                'Unable to join room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            socket.emit(
-              'error-message',
-              response
-            );
+                result.error,
+            });
 
             return;
           }
 
-          socket.join(roomCode);
-
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
+          socket.join(
+            roomCode
+          );
 
           const room =
             getRoom(roomCode);
@@ -586,17 +528,18 @@ io.on(
             success: true,
             roomCode,
             teamId:
-              mapping?.teamId ||
-              null,
+              result.teamId,
             room:
               room
-                ? getRoomPublicData(room)
+                ? getRoomPublicData(
+                    room
+                  )
                 : null,
           };
 
-          if (callback) {
-            callback(response);
-          }
+          callback?.(
+            response
+          );
 
           socket.emit(
             'room-joined',
@@ -615,28 +558,20 @@ io.on(
                 `${playerName} joined the room.`,
             }
           );
+
         } catch (error) {
           console.error(
             'join-room error:',
             error
           );
 
-          const response = {
+          callback?.({
             success: false,
             error:
               error instanceof Error
                 ? error.message
                 : 'Unable to join room.',
-          };
-
-          if (callback) {
-            callback(response);
-          }
-
-          socket.emit(
-            'error-message',
-            response
-          );
+          });
         }
       }
     );
@@ -648,7 +583,10 @@ io.on(
 
     socket.on(
       'rejoin-room',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const roomCode =
             String(
@@ -668,42 +606,42 @@ io.on(
             !roomCode ||
             !teamId
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Room code and team ID are required.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
+          /*
+           * Actual signature:
+           *
+           * rejoinRoom(
+           *   socketId,
+           *   roomCode,
+           *   teamId
+           * )
+           */
           const result =
             rejoinRoom(
+              socket.id,
               roomCode,
-              teamId,
-              socket.id
+              teamId
             );
 
-          if (!result?.success) {
-            const response = {
-              success: false,
-              error:
-                result?.error ||
-                'Unable to rejoin room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+          if (!result.success) {
+            callback?.(
+              result
+            );
 
             return;
           }
 
-          socket.join(roomCode);
+          socket.join(
+            roomCode
+          );
 
           const room =
             getRoom(roomCode);
@@ -714,13 +652,15 @@ io.on(
             teamId,
             room:
               room
-                ? getRoomPublicData(room)
+                ? getRoomPublicData(
+                    room
+                  )
                 : null,
           };
 
-          if (callback) {
-            callback(response);
-          }
+          callback?.(
+            response
+          );
 
           socket.emit(
             'room-joined',
@@ -730,23 +670,20 @@ io.on(
           emitRoomUpdate(
             roomCode
           );
+
         } catch (error) {
           console.error(
             'rejoin-room error:',
             error
           );
 
-          const response = {
+          callback?.({
             success: false,
             error:
               error instanceof Error
                 ? error.message
                 : 'Unable to rejoin room.',
-          };
-
-          if (callback) {
-            callback(response);
-          }
+          });
         }
       }
     );
@@ -758,55 +695,50 @@ io.on(
 
     socket.on(
       'toggle-ready',
-      (payload: any = {}, callback?: Function) => {
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
         try {
-          const mapping =
-            getSocketMapping(
+          /*
+           * toggleReady takes socket.id only.
+           */
+          const result =
+            toggleReady(
               socket.id
             );
 
-          if (!mapping) {
-            const response = {
+          if (!result) {
+            callback?.({
               success: false,
               error:
                 'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          const result =
-            toggleReady(
-              mapping.roomCode,
-              mapping.teamId
-            );
-
-          if (callback) {
-            callback(result);
-          }
+          callback?.({
+            success: true,
+          });
 
           emitRoomUpdate(
-            mapping.roomCode
+            result.roomCode
           );
+
         } catch (error) {
           console.error(
             'toggle-ready error:',
             error
           );
 
-          if (callback) {
-            callback({
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to update ready status.',
-            });
-          }
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to update ready status.',
+          });
         }
       }
     );
@@ -818,7 +750,10 @@ io.on(
 
     socket.on(
       'submit-lineup',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const mapping =
             getSocketMapping(
@@ -826,38 +761,11 @@ io.on(
             );
 
           if (!mapping) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          const roomCode =
-            mapping.roomCode;
-
-          const teamId =
-            mapping.teamId;
-
-          const room =
-            getRoom(roomCode);
-
-          if (!room) {
-            const response = {
-              success: false,
-              error:
-                'Room not found.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
@@ -879,69 +787,534 @@ io.on(
 
           const result =
             saveTeamLineup(
-              roomCode,
-              teamId,
+              mapping.roomCode,
+              mapping.teamId,
               playingXI,
               impactPlayerId
             );
 
-          if (
-            !result.success
-          ) {
-            const response = {
+          if (!result.success) {
+            callback?.({
               success: false,
               error:
                 result.error ||
                 'Unable to save lineup.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            socket.emit(
-              'error-message',
-              response
-            );
+            });
 
             return;
           }
 
-          if (callback) {
-            callback({
-              success: true,
-            });
-          }
+          callback?.({
+            success: true,
+          });
 
           emitRoomUpdate(
-            roomCode
+            mapping.roomCode
           );
 
-          io.to(roomCode).emit(
-            'notification',
-            {
-              type: 'success',
-              message:
-                'Lineup submitted successfully.',
-            }
-          );
         } catch (error) {
           console.error(
             'submit-lineup error:',
             error
           );
 
-          const response = {
+          callback?.({
             success: false,
             error:
               error instanceof Error
                 ? error.message
                 : 'Unable to submit lineup.',
-          };
+          });
+        }
+      }
+    );
 
-          if (callback) {
-            callback(response);
+
+    /* =====================================================
+       START AUCTION
+    ===================================================== */
+
+    socket.on(
+      'start-auction',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
           }
+
+          /*
+           * Actual signature:
+           * startAuction(roomCode, io)
+           */
+          const success =
+            startAuction(
+              mapping.roomCode,
+              io
+            );
+
+          callback?.({
+            success,
+            error: success
+              ? undefined
+              : 'Unable to start auction.',
+          });
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'start-auction error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to start auction.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       PLACE BID
+    ===================================================== */
+
+    socket.on(
+      'place-bid',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          /*
+           * Actual placeBid signature:
+           *
+           * placeBid(
+           *   roomCode,
+           *   teamId,
+           *   io
+           * )
+           *
+           * The bid amount is calculated by
+           * auctionManager itself.
+           */
+          const result =
+            placeBid(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.(
+            result
+          );
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'place-bid error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to place bid.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       SKIP PLAYER
+    ===================================================== */
+
+    socket.on(
+      'skip-player',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          const result =
+            skipPlayer(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.(
+            result
+          );
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'skip-player error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to skip player.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       PAUSE AUCTION
+    ===================================================== */
+
+    socket.on(
+      'pause-auction',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          const success =
+            pauseAuction(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.({
+            success,
+          });
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'pause-auction error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to pause auction.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       RESUME AUCTION
+    ===================================================== */
+
+    socket.on(
+      'resume-auction',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          const success =
+            resumeAuction(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.({
+            success,
+          });
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'resume-auction error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to resume auction.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       NEXT AUCTION PLAYER
+    ===================================================== */
+
+    socket.on(
+      'next-player',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          const success =
+            hostNextPlayer(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.({
+            success,
+          });
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'next-player error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to move to next player.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       END AUCTION
+    ===================================================== */
+
+    socket.on(
+      'end-auction',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          const success =
+            endAuction(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.({
+            success,
+          });
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'end-auction error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to end auction.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       RESTART AUCTION
+    ===================================================== */
+
+    socket.on(
+      'restart-auction',
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          if (!mapping) {
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
+
+            return;
+          }
+
+          const success =
+            restartAuction(
+              mapping.roomCode,
+              mapping.teamId,
+              io
+            );
+
+          callback?.({
+            success,
+          });
+
+          emitRoomUpdate(
+            mapping.roomCode
+          );
+
+        } catch (error) {
+          console.error(
+            'restart-auction error:',
+            error
+          );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to restart auction.',
+          });
         }
       }
     );
@@ -953,7 +1326,10 @@ io.on(
 
     socket.on(
       'start-match',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const mapping =
             getSocketMapping(
@@ -961,193 +1337,143 @@ io.on(
             );
 
           if (!mapping) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          const roomCode =
-            mapping.roomCode;
-
           const room =
-            getRoom(roomCode);
+            getRoom(
+              mapping.roomCode
+            );
 
           if (!room) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Room not found.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
           /*
-           * Only host can start match.
+           * Host only.
            */
           if (
             room.hostId !==
             mapping.teamId
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Only the host can start the match.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
           const teams =
-            getRoomTeams(room);
+            getRoomTeams(room)
+              .filter(
+                (team: any) =>
+                  team.isConnected
+              );
 
-          /*
-           * Connected teams only.
-           */
-          const connectedTeams =
-            teams.filter(
-              (team: any) =>
-                team.isConnected !== false
-            );
-
-          if (
-            connectedTeams.length < 2
-          ) {
-            const response = {
+          if (teams.length < 2) {
+            callback?.({
               success: false,
               error:
                 'At least 2 connected teams are required.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
           /*
-           * Make sure lineups exist.
-           *
-           * Empty squad teams are allowed to remain
-           * without a lineup.
+           * Use first two connected teams.
            */
-          for (
-            const team of connectedTeams
-          ) {
-            if (
-              !team.squad ||
-              team.squad.length === 0
-            ) {
-              team.lineup =
-                {
-                  teamId: team.id,
-                  playingXI: [],
-                  impactPlayerId: null,
-                  submitted: true,
-                };
-
-              team.lineupSubmitted =
-                true;
-
-              team.isReady =
-                true;
-
-              continue;
-            }
-
-            /*
-             * If the team has no lineup,
-             * automatically use its squad.
-             */
-            if (
-              !team.lineup ||
-              !team.lineup.playingXI ||
-              team.lineup.playingXI.length === 0
-            ) {
-              const autoXI =
-                team.squad
-                  .map(
-                    (item: any) =>
-                      item.player?.id
-                  )
-                  .filter(Boolean)
-                  .slice(0, 11);
-
-              team.lineup = {
-                teamId: team.id,
-                playingXI: autoXI,
-                impactPlayerId: null,
-                submitted: true,
-              };
-
-              team.lineupSubmitted =
-                true;
-
-              team.isReady =
-                true;
-            }
-          }
-
           const team1 =
-            connectedTeams[0];
+            teams[0];
 
           const team2 =
-            connectedTeams[1];
+            teams[1];
 
-          if (
-            !team1.lineup ||
-            !team2.lineup
-          ) {
-            const response = {
-              success: false,
-              error:
-                'Both teams need a valid lineup.',
-            };
-
-            if (callback) {
-              callback(response);
+          /*
+           * Make automatic lineups if required.
+           */
+          function ensureLineup(
+            team: any
+          ): TeamLineup {
+            if (
+              team.lineup &&
+              Array.isArray(
+                team.lineup.playingXI
+              )
+            ) {
+              return team.lineup;
             }
 
-            return;
+            const ids =
+              (team.squad || [])
+                .map(
+                  (item: any) =>
+                    item?.player?.id
+                )
+                .filter(Boolean)
+                .slice(0, 11);
+
+            const lineup:
+              TeamLineup = {
+              teamId:
+                team.id,
+              playingXI:
+                ids,
+              impactPlayerId:
+                null,
+              submitted:
+                true,
+            };
+
+            team.lineup =
+              lineup;
+
+            team.lineupSubmitted =
+              true;
+
+            team.isReady =
+              true;
+
+            return lineup;
           }
+
+          const lineup1 =
+            ensureLineup(
+              team1
+            );
+
+          const lineup2 =
+            ensureLineup(
+              team2
+            );
 
           if (
             team1.squad.length < 2 ||
             team2.squad.length < 2
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Both teams need at least 2 players.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          /*
-           * Overs.
-           */
           const requestedOvers =
             Number(
               payload.overs
@@ -1161,84 +1487,77 @@ io.on(
               : 5;
 
           /*
-           * Create match.
+           * IMPORTANT:
+           *
+           * This matches the actual initializeMatch()
+           * signature from matchEngine.ts.
            */
           const match =
             initializeMatch(
-              roomCode,
+              mapping.roomCode,
 
               team1.id,
-              team1.lineup as TeamLineup,
+              lineup1,
               team1.squad,
 
               team2.id,
-              team2.lineup as TeamLineup,
+              lineup2,
               team2.squad,
 
               totalOvers
             );
 
           liveMatches.set(
-            roomCode,
+            mapping.roomCode,
             match
           );
+
+          (
+            room as any
+          ).match =
+            match;
 
           room.gameState =
             'MATCH_PLAYING';
 
-          /*
-           * Save match reference if your Room type
-           * supports it at runtime.
-           */
-          (room as any).match =
-            match;
-
-          if (callback) {
-            callback({
-              success: true,
-              match,
-            });
-          }
+          callback?.({
+            success: true,
+            match,
+          });
 
           emitRoomUpdate(
-            roomCode
+            mapping.roomCode
           );
 
           broadcastMatch(
-            roomCode,
+            mapping.roomCode,
             match
           );
 
-          io.to(roomCode).emit(
+          io.to(
+            mapping.roomCode
+          ).emit(
             'notification',
             {
               type: 'success',
               message:
-                `Match started! ${totalOvers} overs.`,
+                `Match started: ${totalOvers} overs`,
             }
           );
+
         } catch (error) {
           console.error(
             'start-match error:',
             error
           );
 
-          const response = {
+          callback?.({
             success: false,
             error:
               error instanceof Error
                 ? error.message
                 : 'Unable to start match.',
-          };
-
-          if (callback) {
-            callback(response);
-          }
-
-          socket.emit(
-            'error-message',
-            response
-          );
+          });
         }
       }
     );
@@ -1250,34 +1569,44 @@ io.on(
 
     socket.on(
       'get-match',
-      (payload: any = {}, callback?: Function) => {
-        const mapping =
-          getSocketMapping(
-            socket.id
-          );
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
 
-        if (!mapping) {
-          if (callback) {
-            callback({
+          if (!mapping) {
+            callback?.({
               success: false,
               error:
                 'You are not in a room.',
             });
+
+            return;
           }
 
-          return;
-        }
+          const match =
+            liveMatches.get(
+              mapping.roomCode
+            );
 
-        const match =
-          liveMatches.get(
-            mapping.roomCode
-          );
-
-        if (callback) {
-          callback({
+          callback?.({
             success: true,
             match:
               match || null,
+          });
+
+        } catch (error) {
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to get match.',
           });
         }
       }
@@ -1290,7 +1619,10 @@ io.on(
 
     socket.on(
       'submit-delivery',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const mapping =
             getSocketMapping(
@@ -1298,37 +1630,26 @@ io.on(
             );
 
           if (!mapping) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          const roomCode =
-            mapping.roomCode;
-
           const match =
             liveMatches.get(
-              roomCode
+              mapping.roomCode
             );
 
           if (!match) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'No active match.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
@@ -1337,15 +1658,11 @@ io.on(
             match.phase !==
             'AWAITING_DELIVERY'
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
-                'The match is not waiting for a delivery.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+                'Match is not waiting for a delivery.',
+            });
 
             return;
           }
@@ -1356,45 +1673,27 @@ io.on(
             );
 
           if (!innings) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Current innings not found.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          /*
-           * Only bowling team can deliver.
-           */
           if (
             innings.bowlingTeamId !==
             mapping.teamId
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'It is not your bowling turn.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
-
-          const delivery =
-            payload.delivery ||
-            payload;
-
-          const validDelivery =
-            delivery as DeliveryInput;
 
           const batter =
             getCurrentBatter(
@@ -1410,53 +1709,51 @@ io.on(
             !batter ||
             !bowler
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
-                'Unable to determine batter or bowler.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+                'Batter or bowler not found.',
+            });
 
             return;
           }
 
-          /*
-           * Store delivery temporarily.
-           */
-          (match as any).pendingDelivery =
-            validDelivery;
+          const delivery =
+            (
+              payload.delivery ||
+              payload
+            ) as DeliveryInput;
+
+          (
+            match as any
+          ).pendingDelivery =
+            delivery;
 
           match.phase =
             'BALL_IN_FLIGHT';
 
-          if (callback) {
-            callback({
-              success: true,
-            });
-          }
+          callback?.({
+            success: true,
+          });
 
           broadcastMatch(
-            roomCode,
+            mapping.roomCode,
             match
           );
+
         } catch (error) {
           console.error(
             'submit-delivery error:',
             error
           );
 
-          if (callback) {
-            callback({
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to submit delivery.',
-            });
-          }
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to submit delivery.',
+          });
         }
       }
     );
@@ -1468,7 +1765,10 @@ io.on(
 
     socket.on(
       'submit-shot',
-      (payload: any = {}, callback?: Function) => {
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const mapping =
             getSocketMapping(
@@ -1476,37 +1776,26 @@ io.on(
             );
 
           if (!mapping) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          const roomCode =
-            mapping.roomCode;
-
           const match =
             liveMatches.get(
-              roomCode
+              mapping.roomCode
             );
 
           if (!match) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'No active match.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
@@ -1515,15 +1804,11 @@ io.on(
             match.phase !==
             'BALL_IN_FLIGHT'
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
-                'There is no delivery waiting for a shot.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+                'No delivery is waiting for a shot.',
+            });
 
             return;
           }
@@ -1534,53 +1819,39 @@ io.on(
             );
 
           if (!innings) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Current innings not found.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
-          /*
-           * Only batting team can submit the shot.
-           */
           if (
             innings.battingTeamId !==
             mapping.teamId
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'It is not your batting turn.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
 
           const delivery =
-            (match as any)
-              .pendingDelivery;
+            (
+              match as any
+            ).pendingDelivery;
 
           if (!delivery) {
-            const response = {
+            callback?.({
               success: false,
               error:
                 'Pending delivery not found.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+            });
 
             return;
           }
@@ -1599,15 +1870,11 @@ io.on(
             !batter ||
             !bowler
           ) {
-            const response = {
+            callback?.({
               success: false,
               error:
-                'Unable to determine batter or bowler.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
+                'Batter or bowler not found.',
+            });
 
             return;
           }
@@ -1627,26 +1894,18 @@ io.on(
               innings.isFreeHitActive
             );
 
-          /*
-           * Apply result.
-           */
           applyBallResult(
             match,
             outcome
           );
 
-          /*
-           * Clear pending delivery.
-           */
           delete (
             match as any
           ).pendingDelivery;
 
-          /*
-           * Store latest outcome.
-           */
-          (match as any)
-            .lastOutcome =
+          (
+            match as any
+          ).lastOutcome =
             outcome;
 
           if (
@@ -1658,570 +1917,88 @@ io.on(
           }
 
           liveMatches.set(
-            roomCode,
+            mapping.roomCode,
             match
           );
 
-          if (callback) {
-            callback({
-              success: true,
-              outcome,
-              match,
-            });
-          }
+          callback?.({
+            success: true,
+            outcome,
+            match,
+          });
 
           broadcastMatch(
-            roomCode,
+            mapping.roomCode,
             match
           );
 
-          /*
-           * Wait before next delivery.
-           */
-          setTimeout(() => {
-            const current =
-              liveMatches.get(
-                roomCode
-              );
-
-            if (!current) {
-              return;
-            }
-
-            if (
-              current.phase ===
-              'MATCH_OVER'
-            ) {
-              const room =
-                getRoom(roomCode);
-
-              if (room) {
-                room.gameState =
-                  'FINISHED';
-
-                emitRoomUpdate(
-                  roomCode
+          setTimeout(
+            () => {
+              const current =
+                liveMatches.get(
+                  mapping.roomCode
                 );
+
+              if (!current) {
+                return;
               }
 
-              broadcastMatch(
-                roomCode,
+              if (
+                current.phase ===
+                'MATCH_OVER'
+              ) {
+                const room =
+                  getRoom(
+                    mapping.roomCode
+                  );
+
+                if (room) {
+                  room.gameState =
+                    'FINISHED';
+
+                  emitRoomUpdate(
+                    mapping.roomCode
+                  );
+                }
+
+                broadcastMatch(
+                  mapping.roomCode,
+                  current
+                );
+
+                return;
+              }
+
+              current.phase =
+                'AWAITING_DELIVERY';
+
+              liveMatches.set(
+                mapping.roomCode,
                 current
               );
 
-              return;
-            }
+              broadcastMatch(
+                mapping.roomCode,
+                current
+              );
 
-            current.phase =
-              'AWAITING_DELIVERY';
+            },
+            2500
+          );
 
-            liveMatches.set(
-              roomCode,
-              current
-            );
-
-            broadcastMatch(
-              roomCode,
-              current
-            );
-          }, 2500);
         } catch (error) {
           console.error(
             'submit-shot error:',
             error
           );
 
-          if (callback) {
-            callback({
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to process shot.',
-            });
-          }
-        }
-      }
-    );
-
-
-    /* =====================================================
-       AUCTION: START
-    ===================================================== */
-
-    socket.on(
-      'start-auction',
-      (payload: any = {}, callback?: Function) => {
-        try {
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
-
-          if (!mapping) {
-            const response = {
-              success: false,
-              error:
-                'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          const room =
-            getRoom(
-              mapping.roomCode
-            );
-
-          if (!room) {
-            const response = {
-              success: false,
-              error:
-                'Room not found.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          if (
-            room.hostId !==
-            mapping.teamId
-          ) {
-            const response = {
-              success: false,
-              error:
-                'Only the host can start the auction.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          const result =
-            startAuction(
-              mapping.roomCode
-            );
-
-          if (callback) {
-            callback(result);
-          }
-
-          emitRoomUpdate(
-            mapping.roomCode
-          );
-        } catch (error) {
-          console.error(
-            'start-auction error:',
-            error
-          );
-
-          if (callback) {
-            callback({
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to start auction.',
-            });
-          }
-        }
-      }
-    );
-
-
-    /* =====================================================
-       AUCTION: BID
-    ===================================================== */
-
-    socket.on(
-      'place-bid',
-      (payload: any = {}, callback?: Function) => {
-        try {
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
-
-          if (!mapping) {
-            const response = {
-              success: false,
-              error:
-                'You are not in a room.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          const amount =
-            Number(
-              payload.amount ??
-              payload.bid
-            );
-
-          if (
-            !Number.isFinite(amount)
-          ) {
-            const response = {
-              success: false,
-              error:
-                'Invalid bid amount.',
-            };
-
-            if (callback) {
-              callback(response);
-            }
-
-            return;
-          }
-
-          const result =
-            auctionBid(
-              mapping.roomCode,
-              mapping.teamId,
-              amount
-            );
-
-          if (callback) {
-            callback(result);
-          }
-
-          emitRoomUpdate(
-            mapping.roomCode
-          );
-        } catch (error) {
-          console.error(
-            'place-bid error:',
-            error
-          );
-
-          if (callback) {
-            callback({
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to place bid.',
-            });
-          }
-        }
-      }
-    );
-
-
-    /* =====================================================
-       AUCTION: PAUSE
-    ===================================================== */
-
-    socket.on(
-      'pause-auction',
-      (payload: any = {}, callback?: Function) => {
-        try {
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
-
-          if (!mapping) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'You are not in a room.',
-              });
-            }
-
-            return;
-          }
-
-          const room =
-            getRoom(
-              mapping.roomCode
-            );
-
-          if (!room) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room not found.',
-              });
-            }
-
-            return;
-          }
-
-          if (
-            room.hostId !==
-            mapping.teamId
-          ) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Only the host can pause the auction.',
-              });
-            }
-
-            return;
-          }
-
-          const result =
-            pauseAuction(
-              mapping.roomCode
-            );
-
-          if (callback) {
-            callback(result);
-          }
-
-          emitRoomUpdate(
-            mapping.roomCode
-          );
-        } catch (error) {
-          console.error(
-            'pause-auction error:',
-            error
-          );
-        }
-      }
-    );
-
-
-    /* =====================================================
-       AUCTION: RESUME
-    ===================================================== */
-
-    socket.on(
-      'resume-auction',
-      (payload: any = {}, callback?: Function) => {
-        try {
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
-
-          if (!mapping) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'You are not in a room.',
-              });
-            }
-
-            return;
-          }
-
-          const room =
-            getRoom(
-              mapping.roomCode
-            );
-
-          if (!room) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room not found.',
-              });
-            }
-
-            return;
-          }
-
-          if (
-            room.hostId !==
-            mapping.teamId
-          ) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Only the host can resume the auction.',
-              });
-            }
-
-            return;
-          }
-
-          const result =
-            resumeAuction(
-              mapping.roomCode
-            );
-
-          if (callback) {
-            callback(result);
-          }
-
-          emitRoomUpdate(
-            mapping.roomCode
-          );
-        } catch (error) {
-          console.error(
-            'resume-auction error:',
-            error
-          );
-        }
-      }
-    );
-
-
-    /* =====================================================
-       AUCTION: SKIP
-    ===================================================== */
-
-    socket.on(
-      'skip-player',
-      (payload: any = {}, callback?: Function) => {
-        try {
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
-
-          if (!mapping) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'You are not in a room.',
-              });
-            }
-
-            return;
-          }
-
-          const room =
-            getRoom(
-              mapping.roomCode
-            );
-
-          if (!room) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room not found.',
-              });
-            }
-
-            return;
-          }
-
-          if (
-            room.hostId !==
-            mapping.teamId
-          ) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Only the host can skip a player.',
-              });
-            }
-
-            return;
-          }
-
-          const result =
-            skipCurrentPlayer(
-              mapping.roomCode
-            );
-
-          if (callback) {
-            callback(result);
-          }
-
-          emitRoomUpdate(
-            mapping.roomCode
-          );
-        } catch (error) {
-          console.error(
-            'skip-player error:',
-            error
-          );
-        }
-      }
-    );
-
-
-    /* =====================================================
-       GET ROOM
-    ===================================================== */
-
-    socket.on(
-      'get-room',
-      (payload: any = {}, callback?: Function) => {
-        try {
-          const mapping =
-            getSocketMapping(
-              socket.id
-            );
-
-          const roomCode =
-            payload.roomCode ||
-            mapping?.roomCode;
-
-          if (!roomCode) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room code is required.',
-              });
-            }
-
-            return;
-          }
-
-          const room =
-            getRoom(
-              String(
-                roomCode
-              ).toUpperCase()
-            );
-
-          if (!room) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room not found.',
-              });
-            }
-
-            return;
-          }
-
-          if (callback) {
-            callback({
-              success: true,
-              room:
-                getRoomPublicData(
-                  room
-                ),
-            });
-          }
-        } catch (error) {
-          console.error(
-            'get-room error:',
-            error
-          );
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to process shot.',
+          });
         }
       }
     );
@@ -2233,7 +2010,10 @@ io.on(
 
     socket.on(
       'calculate-rankings',
-      (payload: any = {}, callback?: Function) => {
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const mapping =
             getSocketMapping(
@@ -2241,13 +2021,11 @@ io.on(
             );
 
           if (!mapping) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'You are not in a room.',
-              });
-            }
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
 
             return;
           }
@@ -2258,13 +2036,11 @@ io.on(
             );
 
           if (!room) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room not found.',
-              });
-            }
+            callback?.({
+              success: false,
+              error:
+                'Room not found.',
+            });
 
             return;
           }
@@ -2273,13 +2049,11 @@ io.on(
             room.hostId !==
             mapping.teamId
           ) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Only the host can calculate rankings.',
-              });
-            }
+            callback?.({
+              success: false,
+              error:
+                'Only the host can calculate rankings.',
+            });
 
             return;
           }
@@ -2289,31 +2063,28 @@ io.on(
               mapping.roomCode
             );
 
-          if (callback) {
-            callback({
-              success: true,
-              rankings,
-            });
-          }
+          callback?.({
+            success: true,
+            rankings,
+          });
 
           emitRoomUpdate(
             mapping.roomCode
           );
+
         } catch (error) {
           console.error(
             'calculate-rankings error:',
             error
           );
 
-          if (callback) {
-            callback({
-              success: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to calculate rankings.',
-            });
-          }
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to calculate rankings.',
+          });
         }
       }
     );
@@ -2325,7 +2096,10 @@ io.on(
 
     socket.on(
       'reset-lineups',
-      (payload: any = {}, callback?: Function) => {
+      (
+        _payload: any = {},
+        callback?: Function
+      ) => {
         try {
           const mapping =
             getSocketMapping(
@@ -2333,13 +2107,11 @@ io.on(
             );
 
           if (!mapping) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'You are not in a room.',
-              });
-            }
+            callback?.({
+              success: false,
+              error:
+                'You are not in a room.',
+            });
 
             return;
           }
@@ -2350,13 +2122,11 @@ io.on(
             );
 
           if (!room) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Room not found.',
-              });
-            }
+            callback?.({
+              success: false,
+              error:
+                'Room not found.',
+            });
 
             return;
           }
@@ -2365,13 +2135,11 @@ io.on(
             room.hostId !==
             mapping.teamId
           ) {
-            if (callback) {
-              callback({
-                success: false,
-                error:
-                  'Only the host can reset lineups.',
-              });
-            }
+            callback?.({
+              success: false,
+              error:
+                'Only the host can reset lineups.',
+            });
 
             return;
           }
@@ -2380,20 +2148,96 @@ io.on(
             mapping.roomCode
           );
 
-          if (callback) {
-            callback({
-              success: true,
-            });
-          }
+          callback?.({
+            success: true,
+          });
 
           emitRoomUpdate(
             mapping.roomCode
           );
+
         } catch (error) {
           console.error(
             'reset-lineups error:',
             error
           );
+
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to reset lineups.',
+          });
+        }
+      }
+    );
+
+
+    /* =====================================================
+       GET ROOM
+    ===================================================== */
+
+    socket.on(
+      'get-room',
+      (
+        payload: any = {},
+        callback?: Function
+      ) => {
+        try {
+          const mapping =
+            getSocketMapping(
+              socket.id
+            );
+
+          const roomCode =
+            String(
+              payload.roomCode ||
+              mapping?.roomCode ||
+              ''
+            )
+              .trim()
+              .toUpperCase();
+
+          if (!roomCode) {
+            callback?.({
+              success: false,
+              error:
+                'Room code is required.',
+            });
+
+            return;
+          }
+
+          const room =
+            getRoom(roomCode);
+
+          if (!room) {
+            callback?.({
+              success: false,
+              error:
+                'Room not found.',
+            });
+
+            return;
+          }
+
+          callback?.({
+            success: true,
+            room:
+              getRoomPublicData(
+                room
+              ),
+          });
+
+        } catch (error) {
+          callback?.({
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to get room.',
+          });
         }
       }
     );
@@ -2420,41 +2264,41 @@ io.on(
             return;
           }
 
-          const roomCode =
-            mapping.roomCode;
+          const result =
+            handleDisconnect(
+              socket.id
+            );
 
-          const teamId =
-            mapping.teamId;
-
-          handleDisconnect(
-            socket.id
-          );
+          if (!result) {
+            return;
+          }
 
           const room =
-            getRoom(roomCode);
+            getRoom(
+              result.roomCode
+            );
 
           if (room) {
             emitRoomUpdate(
-              roomCode
+              result.roomCode
             );
 
-            io.to(roomCode).emit(
-              'notification',
-              {
-                type: 'info',
-                message:
-                  'A player disconnected.',
-              }
-            );
+            if (
+              result.newHostId
+            ) {
+              io.to(
+                result.roomCode
+              ).emit(
+                'notification',
+                {
+                  type: 'info',
+                  message:
+                    `${result.newHostName || 'Another player'} is now the host.`,
+                }
+              );
+            }
           }
 
-          /*
-           * Keep teamId referenced so TypeScript
-           * and logs remain clear.
-           */
-          console.log(
-            `Disconnected team: ${teamId}`
-          );
         } catch (error) {
           console.error(
             'disconnect error:',
@@ -2463,12 +2307,13 @@ io.on(
         }
       }
     );
+
   }
 );
 
 
 /* =========================================================
-   PRODUCTION STATIC FILES
+   PRODUCTION CLIENT
 ========================================================= */
 
 const clientDistPath =
@@ -2476,7 +2321,6 @@ const clientDistPath =
     __dirname,
     '../client/dist'
   );
-
 
 app.use(
   express.static(
@@ -2486,7 +2330,7 @@ app.use(
 
 
 /* =========================================================
-   CLIENT SPA FALLBACK
+   SPA FALLBACK
 ========================================================= */
 
 app.get(
@@ -2495,11 +2339,10 @@ app.get(
     req: Request,
     res: Response
   ) => {
-    /*
-     * Do not intercept API routes.
-     */
     if (
-      req.path.startsWith('/api/')
+      req.path.startsWith(
+        '/api/'
+      )
     ) {
       res.status(404).json({
         error:
@@ -2539,7 +2382,7 @@ httpServer.listen(
 
 
 /* =========================================================
-   ERROR HANDLING
+   PROCESS ERROR HANDLING
 ========================================================= */
 
 process.on(
@@ -2551,7 +2394,6 @@ process.on(
     );
   }
 );
-
 
 process.on(
   'unhandledRejection',
