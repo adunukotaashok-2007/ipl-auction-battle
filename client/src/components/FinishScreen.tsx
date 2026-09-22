@@ -83,10 +83,9 @@ export const FinishScreen: React.FC = () => {
 
   const formatCr = (value: number) => `₹${(value / 10000000).toFixed(2)} Cr`;
 
-  // If purse is already in "Cr * 100" style legacy units, fallback display
+  // Safe Purse Display with legacy support
   const formatPurseDisplay = (team: TeamPublicData) => {
     const raw = getPurseLeft(team);
-    // Heuristic: if value looks like legacy "100 = 1 Cr" scale
     if (raw > 0 && raw < 100000) {
       return `₹${(raw / 100).toFixed(2)} Cr`;
     }
