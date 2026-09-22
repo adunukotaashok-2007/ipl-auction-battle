@@ -66,12 +66,14 @@ export const MatchScreen: React.FC = () => {
   // Extract Active Players
   const strikerName = rawInnings.strikerName || 
     (rawInnings.battingLineup?.find((p: any) => p.id === rawInnings.strikerId)?.name) || 
-    battingTeam?.squad?.[0]?.name || 
+    (battingTeam as any)?.squad?.[0]?.player?.name ||
+    (battingTeam as any)?.squad?.[0]?.name || 
     'Striker';
 
   const bowlerName = rawInnings.bowlerName || 
     (rawInnings.bowlingLineup?.find((p: any) => p.id === rawInnings.currentBowlerId)?.name) || 
-    bowlingTeam?.squad?.[0]?.name || 
+    (bowlingTeam as any)?.squad?.[0]?.player?.name ||
+    (bowlingTeam as any)?.squad?.[0]?.name || 
     'Bowler';
 
   // Target Score Calculation
@@ -129,7 +131,7 @@ export const MatchScreen: React.FC = () => {
           className="team-score-block batting" 
           style={{ borderBottomColor: (battingTeam as any)?.teamColor || '#2980b9' }}
         >
-          <span className="team-name">{(battingTeam as any)?.teamName || battingTeam?.name || 'BATTING'}</span>
+          <span className="team-name">{(battingTeam as any)?.teamName || (battingTeam as any)?.name || 'BATTING'}</span>
           <span className="score-main">{totalRuns}/{wickets}</span>
           <span className="overs-sub">({completedOvers}.{ballsInCurrentOver} / {totalOvers} Ov)</span>
         </div>
@@ -149,7 +151,7 @@ export const MatchScreen: React.FC = () => {
           className="team-score-block bowling" 
           style={{ borderBottomColor: (bowlingTeam as any)?.teamColor || '#e74c3c' }}
         >
-          <span className="team-name">{(bowlingTeam as any)?.teamName || bowlingTeam?.name || 'BOWLING'}</span>
+          <span className="team-name">{(bowlingTeam as any)?.teamName || (bowlingTeam as any)?.name || 'BOWLING'}</span>
           <div className="run-rates">
             <span>CRR: {crr}</span>
             {rrr && <span>RRR: {rrr}</span>}
@@ -163,8 +165,8 @@ export const MatchScreen: React.FC = () => {
           isBatting={isBatting}
           isBowling={isBowling}
           phase={matchPhase}
-          battingTeamName={(battingTeam as any)?.teamName || battingTeam?.name || 'Batting Team'}
-          bowlingTeamName={(bowlingTeam as any)?.teamName || bowlingTeam?.name || 'Bowling Team'}
+          battingTeamName={(battingTeam as any)?.teamName || (battingTeam as any)?.name || 'Batting Team'}
+          bowlingTeamName={(bowlingTeam as any)?.teamName || (bowlingTeam as any)?.name || 'Bowling Team'}
           strikerName={strikerName}
           bowlerName={bowlerName}
           onDeliverySubmit={submitDelivery}
