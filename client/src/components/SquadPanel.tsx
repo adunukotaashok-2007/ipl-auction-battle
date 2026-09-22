@@ -38,6 +38,13 @@ const SquadPanel: React.FC = () => {
   if (!activeTeam) return null;
 
   // --------------------------------------------------
+  // CURRENT PLAYER TEAM
+  // --------------------------------------------------
+
+  const isMyTeam =
+    activeTeam.id === myTeamId;
+
+  // --------------------------------------------------
   // PURSE
   // --------------------------------------------------
 
@@ -178,8 +185,19 @@ const SquadPanel: React.FC = () => {
   const togglePlayerSelection = (
     playerId: string
   ) => {
+    /*
+     * Every player can select their
+     * OWN team's Playing XI.
+     *
+     * Host status is NOT required.
+     */
+    if (!isMyTeam) {
+      return;
+    }
+
     if (
-      activeTeam.id !== myTeamId
+      roomData.gameState !==
+      'LINEUP_SELECTION'
     ) {
       return;
     }
@@ -196,6 +214,15 @@ const SquadPanel: React.FC = () => {
         )
       );
     } else {
+      /*
+       * Playing XI maximum = 11
+       */
+      if (
+        selectedPlayerIds.length >= 11
+      ) {
+        return;
+      }
+
       setSelectedPlayerIds([
         ...selectedPlayerIds,
         playerId,
@@ -208,6 +235,14 @@ const SquadPanel: React.FC = () => {
   // --------------------------------------------------
 
   const handleSubmitLineup = () => {
+    /*
+     * Only the owner of the current
+     * team can submit that team's XI.
+     */
+    if (!isMyTeam) {
+      return;
+    }
+
     if (
       selectedPlayerIds.length >= 2
     ) {
@@ -396,15 +431,15 @@ const SquadPanel: React.FC = () => {
 
       {roomData.gameState ===
         'LINEUP_SELECTION' &&
-        activeTeam.id ===
-          myTeamId && (
+        isMyTeam && (
 
           <div className="lineup-selection-controls">
 
             <h3>
               Select Playing XI
               (Selected:{' '}
-              {selectedPlayerIds.length})
+              {selectedPlayerIds.length}
+              /11)
             </h3>
 
             <button
@@ -424,6 +459,37 @@ const SquadPanel: React.FC = () => {
                 : 'Confirm Playing Lineup'}
             </button>
 
+          </div>
+        )}
+
+      {/* OTHER TEAM MESSAGE */}
+
+      {roomData.gameState ===
+        'LINEUP_SELECTION' &&
+        !isMyTeam && (
+
+          <div
+            style={{
+              padding: '10px',
+              marginBottom: '12px',
+              borderRadius: '8px',
+              background:
+                'rgba(59,130,246,0.10)',
+              border:
+                '1px solid rgba(59,130,246,0.25)',
+              color: '#cbd5e1',
+              fontSize: '0.85rem',
+              textAlign: 'center',
+            }}
+          >
+            Viewing{' '}
+            {activeTeam.teamName}
+            's squad.
+            <br />
+            <strong>
+              You can select players
+              only from your own team.
+            </strong>
           </div>
         )}
 
@@ -475,13 +541,18 @@ const SquadPanel: React.FC = () => {
                       ? 'selected'
                       : ''
                   }`}
-                  onClick={() =>
-                    roomData.gameState ===
-                      'LINEUP_SELECTION' &&
-                    togglePlayerSelection(
-                      player.id
-                    )
-                  }
+                  onClick={() => {
+
+                    if (
+                      roomData.gameState ===
+                      'LINEUP_SELECTION'
+                    ) {
+                      togglePlayerSelection(
+                        player.id
+                      );
+                    }
+
+                  }}
                 >
 
                   <div className="card-top">
