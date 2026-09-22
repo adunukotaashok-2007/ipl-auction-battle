@@ -103,38 +103,25 @@ const GameContext =
 export const GameProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-
   const [roomData, setRoomData] =
-    useState<RoomPublicData | null>(
-      null
-    );
+    useState<RoomPublicData | null>(null);
 
   const [matchState, setMatchState] =
-    useState<LiveMatchState | null>(
-      null
-    );
+    useState<LiveMatchState | null>(null);
 
   const [myTeamId, setMyTeamId] =
     useState<string | null>(() =>
-      localStorage.getItem(
-        'ipl_team_id'
-      )
+      localStorage.getItem('ipl_team_id')
     );
 
   const [isConnected, setIsConnected] =
-    useState<boolean>(
-      socket.connected
-    );
+    useState<boolean>(socket.connected);
 
   const [error, setError] =
-    useState<string | null>(
-      null
-    );
+    useState<string | null>(null);
 
   const [notification, setNotification] =
-    useState<string | null>(
-      null
-    );
+    useState<string | null>(null);
 
   const [soldAnimation, setSoldAnimation] =
     useState<{
@@ -153,59 +140,40 @@ export const GameProvider: React.FC<{
   // --------------------------------------------------
 
   useEffect(() => {
-
     function onConnect() {
       setIsConnected(true);
 
       const savedRoomCode =
-        localStorage.getItem(
-          'ipl_room_code'
-        ) ||
-        roomData?.code ||
+        localStorage.getItem('ipl_room_code') ||
         '';
 
       const savedTeamId =
-        localStorage.getItem(
-          'ipl_team_id'
-        ) ||
-        myTeamId;
+        localStorage.getItem('ipl_team_id') ||
+        '';
 
       const savedUserName =
-        localStorage.getItem(
-          'ipl_user_name'
-        ) ||
+        localStorage.getItem('ipl_user_name') ||
         'Manager';
 
+      /*
+       * IMPORTANT:
+       * Reconnecting players must use REJOIN only.
+       *
+       * Do not emit JOIN here because JOIN can
+       * create/join a new team instead of restoring
+       * the existing player's team.
+       */
       if (
         savedRoomCode &&
         savedTeamId
       ) {
-
         socket.emit(
           'rejoin-room',
           {
-            roomCode:
-              savedRoomCode,
-            teamId:
-              savedTeamId,
-            userName:
-              savedUserName,
-            playerName:
-              savedUserName,
-          }
-        );
-
-        socket.emit(
-          'join-room',
-          {
-            roomCode:
-              savedRoomCode,
-            teamId:
-              savedTeamId,
-            playerName:
-              savedUserName,
-            userName:
-              savedUserName,
+            roomCode: savedRoomCode,
+            teamId: savedTeamId,
+            userName: savedUserName,
+            playerName: savedUserName,
           }
         );
       }
@@ -222,7 +190,6 @@ export const GameProvider: React.FC<{
         teamId: string;
       }
     ) {
-
       const activeCode =
         data.roomCode ||
         data.code ||
@@ -240,11 +207,11 @@ export const GameProvider: React.FC<{
           'ipl_team_id',
           data.teamId
         );
-      }
 
-      setMyTeamId(
-        data.teamId
-      );
+        setMyTeamId(
+          data.teamId
+        );
+      }
 
       setError(null);
     }
@@ -256,7 +223,6 @@ export const GameProvider: React.FC<{
         teamId: string;
       }
     ) {
-
       const activeCode =
         data.roomCode ||
         data.code ||
@@ -274,11 +240,11 @@ export const GameProvider: React.FC<{
           'ipl_team_id',
           data.teamId
         );
-      }
 
-      setMyTeamId(
-        data.teamId
-      );
+        setMyTeamId(
+          data.teamId
+        );
+      }
 
       setError(null);
     }
@@ -286,7 +252,6 @@ export const GameProvider: React.FC<{
     function onRoomUpdated(
       state: RoomPublicData
     ) {
-
       setRoomData(state);
 
       const activeCode =
@@ -311,6 +276,9 @@ export const GameProvider: React.FC<{
         teamId: string;
       }
     ) {
+      if (!data?.teamId) {
+        return;
+      }
 
       setMyTeamId(
         data.teamId
@@ -329,14 +297,11 @@ export const GameProvider: React.FC<{
         price: number;
       }
     ) {
-
       setSoldAnimation(data);
 
       setTimeout(
         () =>
-          setSoldAnimation(
-            null
-          ),
+          setSoldAnimation(null),
         3500
       );
     }
@@ -346,16 +311,11 @@ export const GameProvider: React.FC<{
         player: Player;
       }
     ) {
-
-      setUnsoldAnimation(
-        data
-      );
+      setUnsoldAnimation(data);
 
       setTimeout(
         () =>
-          setUnsoldAnimation(
-            null
-          ),
+          setUnsoldAnimation(null),
         3000
       );
     }
@@ -363,16 +323,11 @@ export const GameProvider: React.FC<{
     function onNotification(
       msg: string
     ) {
-
-      setNotification(
-        msg
-      );
+      setNotification(msg);
 
       setTimeout(
         () =>
-          setNotification(
-            null
-          ),
+          setNotification(null),
         4000
       );
     }
@@ -380,17 +335,13 @@ export const GameProvider: React.FC<{
     function onError(
       data: any
     ) {
-
       const message =
-        typeof data ===
-        'string'
+        typeof data === 'string'
           ? data
           : data?.message ||
             'An error occurred';
 
-      setError(
-        message
-      );
+      setError(message);
 
       setTimeout(
         () =>
@@ -459,7 +410,6 @@ export const GameProvider: React.FC<{
     }
 
     return () => {
-
       socket.off(
         'connect',
         onConnect
@@ -515,7 +465,6 @@ export const GameProvider: React.FC<{
         onError
       );
     };
-
   }, []);
 
   // --------------------------------------------------
@@ -541,7 +490,6 @@ export const GameProvider: React.FC<{
     teamColor?: string,
     teamLogo?: string
   ) => {
-
     localStorage.setItem(
       'ipl_user_name',
       userName
@@ -586,7 +534,6 @@ export const GameProvider: React.FC<{
     teamColor?: string,
     teamLogo?: string
   ) => {
-
     const cleanCode =
       roomCode
         .trim()
@@ -602,11 +549,14 @@ export const GameProvider: React.FC<{
       userName
     );
 
+    /*
+     * JOIN is used only when the user explicitly
+     * enters a room from the Join Room screen.
+     */
     socket.emit(
       'join-room',
       {
-        roomCode:
-          cleanCode,
+        roomCode: cleanCode,
 
         playerName:
           userName,
@@ -637,7 +587,6 @@ export const GameProvider: React.FC<{
   // --------------------------------------------------
 
   const leaveRoom = () => {
-
     socket.emit(
       'leave-room',
       {
@@ -671,7 +620,6 @@ export const GameProvider: React.FC<{
   // --------------------------------------------------
 
   const toggleReady = () => {
-
     socket.emit(
       'toggle-ready',
       {
@@ -689,7 +637,6 @@ export const GameProvider: React.FC<{
   // --------------------------------------------------
 
   const startAuction = () => {
-
     socket.emit(
       'start-auction',
       {
@@ -705,10 +652,8 @@ export const GameProvider: React.FC<{
   const placeBid = (
     amount?: number | any
   ) => {
-
     const bidVal =
-      typeof amount ===
-      'number'
+      typeof amount === 'number'
         ? amount
         : undefined;
 
@@ -731,7 +676,6 @@ export const GameProvider: React.FC<{
   };
 
   const skipPlayer = () => {
-
     socket.emit(
       'skip-player',
       {
@@ -745,7 +689,6 @@ export const GameProvider: React.FC<{
   };
 
   const pauseAuction = () => {
-
     socket.emit(
       'pause-auction',
       {
@@ -759,7 +702,6 @@ export const GameProvider: React.FC<{
   };
 
   const resumeAuction = () => {
-
     socket.emit(
       'resume-auction',
       {
@@ -773,7 +715,6 @@ export const GameProvider: React.FC<{
   };
 
   const nextPlayer = () => {
-
     socket.emit(
       'next-player',
       {
@@ -787,7 +728,6 @@ export const GameProvider: React.FC<{
   };
 
   const endAuction = () => {
-
     socket.emit(
       'end-auction',
       {
@@ -801,7 +741,6 @@ export const GameProvider: React.FC<{
   };
 
   const restartAuction = () => {
-
     socket.emit(
       'restart-auction',
       {
@@ -821,6 +760,24 @@ export const GameProvider: React.FC<{
   const submitLineup = (
     playerIds: string[]
   ) => {
+    if (!myTeamId) {
+      setError(
+        'Your team ID is missing. Please reconnect to the room.'
+      );
+      return;
+    }
+
+    const cleanPlayerIds =
+      Array.from(
+        new Set(
+          playerIds.filter(
+            (id) =>
+              typeof id ===
+                'string' &&
+              id.length > 0
+          )
+        )
+      ).slice(0, 11);
 
     socket.emit(
       'submit-lineup',
@@ -832,10 +789,10 @@ export const GameProvider: React.FC<{
           myTeamId,
 
         playingXI:
-          playerIds,
+          cleanPlayerIds,
 
         lineup:
-          playerIds,
+          cleanPlayerIds,
 
         impactPlayerId:
           null,
@@ -850,7 +807,6 @@ export const GameProvider: React.FC<{
   const startMatch = (
     overs: number = 2
   ) => {
-
     socket.emit(
       'start-match',
       {
@@ -868,7 +824,6 @@ export const GameProvider: React.FC<{
   const submitDelivery = (
     delivery: DeliveryInput
   ) => {
-
     socket.emit(
       'submit-delivery',
       {
@@ -886,7 +841,6 @@ export const GameProvider: React.FC<{
   const submitShot = (
     shot: ShotInput
   ) => {
-
     socket.emit(
       'submit-shot',
       {
@@ -945,7 +899,6 @@ export const GameProvider: React.FC<{
   // --------------------------------------------------
 
   const value: GameContextType = {
-
     roomData,
 
     roomState:
@@ -1028,7 +981,6 @@ export const GameProvider: React.FC<{
 // --------------------------------------------------
 
 export const useGame = () => {
-
   const context =
     useContext(GameContext);
 
