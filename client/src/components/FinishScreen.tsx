@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { TeamPublicData, PurchasedPlayer } from '../types';
 import './FinishScreen.css';
@@ -18,51 +18,28 @@ export const FinishScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     'lineup' | 'rivals' | 'standings'
   >('lineup');
-
-  const [selectedRivalId, setSelectedRivalId] =
-    useState<string | null>(null);
-
+  const [selectedRivalId, setSelectedRivalId] = useState<string | null>(null);
   const [lineupLocked, setLineupLocked] = useState(false);
 
-  if (!roomData) return null;
+  /*
+   * ------------------------------------------------------------
+   * SAFE DATA
+   * ------------------------------------------------------------
+   */
 
-  const teams = roomData.teams || [];
-
-  const hostCheck =
-    isHost ||
-    roomData.hostId === myTeamId;
+  const teams = roomData?.teams || [];
 
   const myTeam =
-    teams.find(
-      (t: TeamPublicData) => t.id === myTeamId
-    ) || null;
+    teams.find((team: TeamPublicData) => team.id === myTeamId) || null;
 
-  // --------------------------------------------------
-  // PURSE
-  // --------------------------------------------------
+  const hostCheck =
+    isHost || (!!roomData && roomData.hostId === myTeamId);
 
-  const getPurseLeft = (
-    team: TeamPublicData
-  ): number => {
-    const p: any = (team as any).purse;
-
-    if (typeof p === 'number') {
-      return p;
-    }
-
-    if (
-      p &&
-      typeof p.remaining === 'number'
-    ) {
-      return p.remaining;
-    }
-
-    return 0;
-  };
-
-  // --------------------------------------------------
-  // PLAYER NORMALIZER
-  // --------------------------------------------------
+  /*
+   * ------------------------------------------------------------
+   * PLAYER HELPERS
+   * ------------------------------------------------------------
+   */
 
   const getPlayerFromSquadItem = (item: any) => {
     if (!item) return null;
@@ -74,190 +51,222 @@ export const FinishScreen: React.FC = () => {
     return item;
   };
 
-  const getPlayerId = (item: any): string => {
-    const p = getPlayerFromSquadItem(item);
+  const mySquadPlayerIds = (myTeam?.squad || [])
+    .map((item: any) => getPlayerFromSquadItem(item)?.id)
+    .filter((id): id is string => Boolean(id));
 
-    return p?.id || '';
-  };
+  /*
+   * ------------------------------------------------------------
+   * AUTO SELECT PLAYERS
+   * ------------------------------------------------------------
+   */
 
-  // --------------------------------------------------
-  // LINEUP STATUS
-  // --------------------------------------------------
-
-  const allLineupsSubmitted = teams.every(
-    (t: TeamPublicData) =>
-      !!(t as any).lineupSubmitted ||
-      (
-        (t as any).lineup &&
-        (t as any).lineup.length > 0
-      ) ||
-      !!(t as any).isReady
-  );
-
-  const myLineupAlreadyIn = !!(
-    (myTeam as any)?.lineupSubmitted ||
-    (
-      (myTeam as any)?.lineup &&
-      (myTeam as any).lineup.length > 0
-    ) ||
-    (myTeam as any)?.isReady
-  );
-
-  // --------------------------------------------------
-  // PLAYER SELECTION
-  // --------------------------------------------------
-
-  const togglePlayerSelection = (
-    playerId: string
-  ) => {
-    if (
-      lineupLocked ||
-      myLineupAlreadyIn ||
-      !playerId
-    ) {
+  useEffect(() => {
+    if (mySquadPlayerIds.length === 0) {
       return;
     }
 
-    if (
-      selectedPlayerIds.includes(playerId)
-    ) {
-      setSelectedPlayerIds(
-        selectedPlayerIds.filter(
-          (id) => id !== playerId
-        )
-      );
+    if (selectedPlayerIds.length > 0) {
+      return;
+    }
+
+    if (mySquadPlayerIds.length <= 11) {
+      setSelectedPlayerIds(mySquadPlayerIds);
     } else {
-      const squadLen =
-        myTeam?.squad?.length || 0;
-
-      const maxPick = Math.min(
-        11,
-        Math.max(2, squadLen)
-      );
-
-      if (
-        selectedPlayerIds.length >= maxPick
-      ) {
-        return;
-      }
-
-      setSelectedPlayerIds([
-        ...selectedPlayerIds,
-        playerId,
-      ]);
+      setSelectedPlayerIds(mySquadPlayerIds.slice(0, 11));
     }
-  };
+  }, [myTeam]);
 
-  // --------------------------------------------------
-  // CONFIRM LINEUP
-  // --------------------------------------------------
+  /*
+   * ------------------------------------------------------------
+   * SAFE PURSE
+   * ------------------------------------------------------------
+   */
 
-  const handleConfirmLineup = () => {
-    const squadLen =
-      myTeam?.squad?.length || 0;
+  const getPurseLeft = (team: TeamPublicData): number => {
+    const purse: any = team.purse;
 
-    const minRequired = Math.min(
-      11,
-      Math.max(2, squadLen)
-    );
-
-    if (
-      selectedPlayerIds.length <
-        minRequired &&
-      squadLen >= minRequired
-    ) {
-      return;
+    if (typeof purse === 'number') {
+      return purse;
     }
 
-    if (
-      selectedPlayerIds.length < 2 &&
-      squadLen >= 2
-    ) {
-      return;
+    if (purse && typeof purse.remaining === 'number') {
+      return purse.remaining;
     }
 
-    submitLineup(selectedPlayerIds);
-
-    setLineupLocked(true);
+    return 0;
   };
 
-  // --------------------------------------------------
-  // START MATCH
-  // --------------------------------------------------
-
-  const handleStartMatch = () => {
-    if (!hostCheck) return;
-
-    if (!allLineupsSubmitted) return;
-
-    startMatch(selectedOvers);
+  const formatCr = (value: number): string => {
+    return `₹${(value / 10000000).toFixed(2)} Cr`;
   };
 
-  // --------------------------------------------------
-  // SORT TEAMS
-  // --------------------------------------------------
-
-  const sortedTeams = [...teams].sort(
-    (a, b) =>
-      getPurseLeft(b) -
-      getPurseLeft(a)
-  );
-
-  // --------------------------------------------------
-  // ACTIVE RIVAL
-  // --------------------------------------------------
-
-  const activeRival =
-    teams.find(
-      (t) =>
-        t.id ===
-        (
-          selectedRivalId ||
-          teams[0]?.id
-        )
-    ) || null;
-
-  // --------------------------------------------------
-  // MONEY FORMAT
-  // --------------------------------------------------
-
-  const formatCr = (value: number) =>
-    `₹${(
-      value / 10000000
-    ).toFixed(2)} Cr`;
-
-  const formatPurseDisplay = (
-    team: TeamPublicData
-  ) => {
+  const formatPurseDisplay = (team: TeamPublicData): string => {
     const raw = getPurseLeft(team);
 
-    if (
-      raw > 0 &&
-      raw < 100000
-    ) {
-      return `₹${(
-        raw / 100
-      ).toFixed(2)} Cr`;
+    /*
+     * Legacy support:
+     * Some old values may be stored in lakhs/crore-style units.
+     */
+    if (raw > 0 && raw < 100000) {
+      return `₹${(raw / 100).toFixed(2)} Cr`;
     }
 
     return formatCr(raw);
   };
 
-  // --------------------------------------------------
-  // UI
-  // --------------------------------------------------
+  /*
+   * ------------------------------------------------------------
+   * LINEUP STATUS
+   * ------------------------------------------------------------
+   */
+
+  const allLineupsSubmitted = teams.every(
+    (team: TeamPublicData) =>
+      !!team.lineupSubmitted ||
+      !!(team as any).lineup?.length ||
+      !!team.isReady
+  );
+
+  const myLineupAlreadyIn = Boolean(
+    myTeam?.lineupSubmitted ||
+      (myTeam as any)?.lineup?.length ||
+      myTeam?.isReady
+  );
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER SELECTION
+   * ------------------------------------------------------------
+   */
+
+  const togglePlayerSelection = (playerId: string) => {
+    if (lineupLocked || myLineupAlreadyIn || !playerId) {
+      return;
+    }
+
+    if (selectedPlayerIds.includes(playerId)) {
+      setSelectedPlayerIds(
+        selectedPlayerIds.filter((id) => id !== playerId)
+      );
+      return;
+    }
+
+    const squadLength = mySquadPlayerIds.length;
+
+    const maxPick =
+      squadLength >= 11
+        ? 11
+        : squadLength;
+
+    if (selectedPlayerIds.length >= maxPick) {
+      return;
+    }
+
+    setSelectedPlayerIds([
+      ...selectedPlayerIds,
+      playerId,
+    ]);
+  };
+
+  const selectAllSquad = () => {
+    if (lineupLocked || myLineupAlreadyIn) {
+      return;
+    }
+
+    if (mySquadPlayerIds.length <= 11) {
+      setSelectedPlayerIds(mySquadPlayerIds);
+    } else {
+      setSelectedPlayerIds(
+        mySquadPlayerIds.slice(0, 11)
+      );
+    }
+  };
+
+  const handleConfirmLineup = () => {
+    if (selectedPlayerIds.length === 0) {
+      return;
+    }
+
+    submitLineup(selectedPlayerIds);
+    setLineupLocked(true);
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * START MATCH
+   * ------------------------------------------------------------
+   */
+
+  const handleStartMatch = () => {
+    if (!hostCheck) {
+      return;
+    }
+
+    if (!allLineupsSubmitted) {
+      return;
+    }
+
+    startMatch(selectedOvers);
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * SORTING / RIVALS
+   * ------------------------------------------------------------
+   */
+
+  const sortedTeams = [...teams].sort(
+    (a, b) => getPurseLeft(b) - getPurseLeft(a)
+  );
+
+  const activeRival =
+    teams.find(
+      (team) =>
+        team.id ===
+        (selectedRivalId || teams[0]?.id)
+    ) || null;
+
+  /*
+   * ------------------------------------------------------------
+   * CONFIRM BUTTON
+   * ------------------------------------------------------------
+   */
+
+  const isConfirmDisabled =
+    selectedPlayerIds.length === 0 ||
+    lineupLocked ||
+    myLineupAlreadyIn;
+
+  /*
+   * ------------------------------------------------------------
+   * ROOM CHECK
+   *
+   * Hooks are already executed above, so this is safe.
+   * ------------------------------------------------------------
+   */
+
+  if (!roomData) {
+    return null;
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * UI
+   * ------------------------------------------------------------
+   */
 
   return (
     <div className="finish-screen">
-
       <div className="finish-overlay" />
 
       <div className="finish-container">
 
-        {/* HEADER */}
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
 
         <div className="finish-header">
-
           <div className="trophy-badge">
             🏆
           </div>
@@ -269,10 +278,11 @@ export const FinishScreen: React.FC = () => {
           <p className="finish-subtitle">
             Select Playing XI • Scout Rivals • Host Starts Match
           </p>
-
         </div>
 
-        {/* TABS */}
+        {/* =====================================================
+            TABS
+        ====================================================== */}
 
         <div
           className="finish-tabs"
@@ -284,17 +294,12 @@ export const FinishScreen: React.FC = () => {
             flexWrap: 'wrap',
           }}
         >
-
           <button
             type="button"
             className={`tab-btn ${
-              activeTab === 'lineup'
-                ? 'active'
-                : ''
+              activeTab === 'lineup' ? 'active' : ''
             }`}
-            onClick={() =>
-              setActiveTab('lineup')
-            }
+            onClick={() => setActiveTab('lineup')}
           >
             🏏 My Playing XI
           </button>
@@ -302,13 +307,9 @@ export const FinishScreen: React.FC = () => {
           <button
             type="button"
             className={`tab-btn ${
-              activeTab === 'rivals'
-                ? 'active'
-                : ''
+              activeTab === 'rivals' ? 'active' : ''
             }`}
-            onClick={() =>
-              setActiveTab('rivals')
-            }
+            onClick={() => setActiveTab('rivals')}
           >
             🔍 All Teams / Rivals
           </button>
@@ -316,20 +317,17 @@ export const FinishScreen: React.FC = () => {
           <button
             type="button"
             className={`tab-btn ${
-              activeTab === 'standings'
-                ? 'active'
-                : ''
+              activeTab === 'standings' ? 'active' : ''
             }`}
-            onClick={() =>
-              setActiveTab('standings')
-            }
+            onClick={() => setActiveTab('standings')}
           >
             📊 Standings
           </button>
-
         </div>
 
-        {/* STANDINGS */}
+        {/* =====================================================
+            STANDINGS
+        ====================================================== */}
 
         {activeTab === 'standings' && (
           <div className="rankings-container">
@@ -359,24 +357,15 @@ export const FinishScreen: React.FC = () => {
                     team.id === myTeamId;
 
                   const ready =
-                    !!(team as any)
-                      .lineupSubmitted ||
-                    !!(team as any)
-                      .isReady ||
-                    (
-                      (team as any)
-                        .lineup &&
-                      (team as any)
-                        .lineup.length > 0
-                    );
+                    !!team.lineupSubmitted ||
+                    !!team.isReady ||
+                    !!(team as any).lineup?.length;
 
                   return (
                     <div
                       key={team.id}
                       className={`rank-card ${
-                        isMyTeam
-                          ? 'is-me'
-                          : ''
+                        isMyTeam ? 'is-me' : ''
                       }`}
                       style={{
                         borderLeftColor:
@@ -426,9 +415,7 @@ export const FinishScreen: React.FC = () => {
                           <span>
                             Purse Left:{' '}
                             <strong>
-                              {formatPurseDisplay(
-                                team
-                              )}
+                              {formatPurseDisplay(team)}
                             </strong>
                           </span>
 
@@ -459,7 +446,9 @@ export const FinishScreen: React.FC = () => {
           </div>
         )}
 
-        {/* RIVALS */}
+        {/* =====================================================
+            RIVALS
+        ====================================================== */}
 
         {activeTab === 'rivals' && (
           <div className="rivals-container">
@@ -489,45 +478,47 @@ export const FinishScreen: React.FC = () => {
               }}
             >
 
-              {teams.map((team) => (
+              {teams.map(
+                (team: TeamPublicData) => {
 
-                <button
-                  key={team.id}
-                  type="button"
-                  className={`team-tab ${
-                    activeRival?.id === team.id
-                      ? 'active'
-                      : ''
-                  }`}
-                  onClick={() =>
-                    setSelectedRivalId(team.id)
-                  }
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    border:
-                      activeRival?.id === team.id
-                        ? '2px solid #a855f7'
-                        : '1px solid rgba(255,255,255,0.15)',
-                    background:
-                      activeRival?.id === team.id
-                        ? 'rgba(124,58,237,0.35)'
-                        : 'rgba(255,255,255,0.05)',
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
+                  const isActive =
+                    activeRival?.id === team.id;
 
-                  {team.teamLogo || '🏏'}{' '}
-                  {team.teamName}
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      className={`team-tab ${
+                        isActive ? 'active' : ''
+                      }`}
+                      onClick={() =>
+                        setSelectedRivalId(team.id)
+                      }
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: 8,
+                        border: isActive
+                          ? '2px solid #a855f7'
+                          : '1px solid rgba(255,255,255,0.15)',
+                        background: isActive
+                          ? 'rgba(124,58,237,0.35)'
+                          : 'rgba(255,255,255,0.05)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                      }}
+                    >
 
-                  {team.id === myTeamId
-                    ? ' (YOU)'
-                    : ''}
+                      {team.teamLogo || '🏏'}{' '}
+                      {team.teamName}
 
-                </button>
+                      {team.id === myTeamId
+                        ? ' (YOU)'
+                        : ''}
 
-              ))}
+                    </button>
+                  );
+                }
+              )}
 
             </div>
 
@@ -548,8 +539,7 @@ export const FinishScreen: React.FC = () => {
                   className="team-stats-summary"
                   style={{
                     display: 'flex',
-                    justifyContent:
-                      'space-between',
+                    justifyContent: 'space-between',
                     gap: 12,
                     flexWrap: 'wrap',
                     marginBottom: 12,
@@ -572,102 +562,98 @@ export const FinishScreen: React.FC = () => {
 
                   <span>
                     Status:{' '}
-                    {
-                      (
-                        activeRival as any
-                      ).lineupSubmitted ||
-                      (
-                        activeRival as any
-                      ).isReady
-                        ? 'READY ✓'
-                        : 'SELECTING...'
-                    }
+                    {activeRival.lineupSubmitted ||
+                    activeRival.isReady
+                      ? 'READY ✓'
+                      : 'SELECTING...'}
                   </span>
 
                 </div>
 
                 <div className="rival-squad-list">
 
-                  {(activeRival.squad || [])
-                    .length === 0 && (
+                  {(activeRival.squad || []).length ===
+                    0 && (
                     <p className="empty-squad-notice">
                       No players in this squad yet.
                     </p>
                   )}
 
-                  {(activeRival.squad || [])
-                    .map(
-                      (
-                        item: any,
-                        idx: number
-                      ) => {
+                  {(activeRival.squad || []).map(
+                    (
+                      item: PurchasedPlayer | any,
+                      index: number
+                    ) => {
 
-                        const p =
-                          getPlayerFromSquadItem(
-                            item
-                          );
+                      const player =
+                        getPlayerFromSquadItem(item);
 
-                        if (!p) return null;
+                      if (!player) {
+                        return null;
+                      }
 
-                        return (
-                          <div
-                            key={
-                              p.id || idx
-                            }
-                            className="rival-player-row"
+                      const price =
+                        typeof item.price === 'number'
+                          ? item.price
+                          : typeof item.purchasePrice ===
+                            'number'
+                          ? item.purchasePrice
+                          : null;
+
+                      return (
+                        <div
+                          key={
+                            player.id || index
+                          }
+                          className="rival-player-row"
+                          style={{
+                            display: 'flex',
+                            justifyContent:
+                              'space-between',
+                            gap: 8,
+                            padding: '8px 10px',
+                            borderBottom:
+                              '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+
+                          <span>
+                            #{index + 1}
+                          </span>
+
+                          <span
                             style={{
-                              display: 'flex',
-                              justifyContent:
-                                'space-between',
-                              gap: 8,
-                              padding:
-                                '8px 10px',
-                              borderBottom:
-                                '1px solid rgba(255,255,255,0.06)',
+                              flex: 1,
                             }}
                           >
+                            {player.name}{' '}
+                            {player.isOverseas
+                              ? '✈️'
+                              : ''}
+                          </span>
 
-                            <span>
-                              #{idx + 1}
-                            </span>
+                          <span
+                            style={{
+                              opacity: 0.8,
+                            }}
+                          >
+                            {player.role}
+                          </span>
 
+                          {price !== null && (
                             <span
                               style={{
-                                flex: 1,
+                                color: '#4ade80',
                               }}
                             >
-                              {p.name}{' '}
-                              {p.isOverseas
-                                ? '✈️'
-                                : ''}
+                              {formatCr(price)}
                             </span>
+                          )}
 
-                            <span
-                              style={{
-                                opacity: 0.8,
-                              }}
-                            >
-                              {p.role}
-                            </span>
-
-                            {typeof item.price ===
-                              'number' && (
-                              <span
-                                style={{
-                                  color:
-                                    '#4ade80',
-                                }}
-                              >
-                                {formatCr(
-                                  item.price
-                                )}
-                              </span>
-                            )}
-
-                          </div>
-                        );
-                      }
-                    )}
+                        </div>
+                      );
+                    }
+                  )}
 
                 </div>
 
@@ -677,183 +663,224 @@ export const FinishScreen: React.FC = () => {
           </div>
         )}
 
-        {/* MY PLAYING XI */}
+        {/* =====================================================
+            MY PLAYING XI
+        ====================================================== */}
 
-        {activeTab === 'lineup' &&
-          myTeam && (
+        {activeTab === 'lineup' && myTeam && (
+          <div
+            className="lineup-builder-card"
+            style={{
+              borderColor:
+                myTeam.teamColor ||
+                '#3b82f6',
+            }}
+          >
+
             <div
-              className="lineup-builder-card"
+              className="builder-header"
               style={{
-                borderColor:
-                  myTeam.teamColor ||
-                  '#3b82f6',
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
               }}
             >
 
-              <div className="builder-header">
+              <div>
 
-                <h3>
-                  🏏 Select Your Playing XI (
-                  {myTeam.teamName}
-                  )
+                <h3
+                  style={{
+                    margin: 0,
+                  }}
+                >
+                  🏏 Select Playing XI (
+                  {myTeam.teamName})
                 </h3>
 
-                <p>
-                  Tap players from your bought
-                  squad.
-
-                  {(myTeam.squad?.length || 0) >=
-                  11
-                    ? ' Select exactly 11 players.'
-                    : ' Select at least 2 players (or your full squad).'}
+                <p
+                  style={{
+                    margin:
+                      '4px 0 0 0',
+                    opacity: 0.8,
+                  }}
+                >
+                  Tap players to select.
+                  Your squad size:{' '}
+                  {mySquadPlayerIds.length}{' '}
+                  players.
                 </p>
 
               </div>
 
-              {(myTeam.squad || []).length ===
-              0 ? (
-                <p className="empty-squad-notice">
-                  No players bought during auction.
-                </p>
-              ) : (
-                <div className="squad-selector-grid">
-
-                  {(myTeam.squad as any[]).map(
-                    (
-                      item:
-                        | PurchasedPlayer
-                        | any,
-                      idx: number
-                    ) => {
-
-                      const player =
-                        getPlayerFromSquadItem(
-                          item
-                        );
-
-                      if (!player) return null;
-
-                      const pid = player.id;
-
-                      const isSelected =
-                        selectedPlayerIds.includes(
-                          pid
-                        );
-
-                      return (
-                        <div
-                          key={
-                            pid || idx
-                          }
-                          className={`squad-select-pill ${
-                            isSelected
-                              ? 'selected'
-                              : ''
-                          }`}
-                          onClick={() =>
-                            togglePlayerSelection(
-                              pid
-                            )
-                          }
-                          style={{
-                            opacity:
-                              lineupLocked ||
-                              myLineupAlreadyIn
-                                ? 0.7
-                                : 1,
-                            cursor:
-                              lineupLocked ||
-                              myLineupAlreadyIn
-                                ? 'default'
-                                : 'pointer',
-                          }}
-                        >
-
-                          <span className="pill-role">
-                            {(
-                              player.role ||
-                              'PLY'
-                            )
-                              .toString()
-                              .substring(
-                                0,
-                                3
-                              )}
-                          </span>
-
-                          <span className="pill-name">
-                            {player.name}
-                          </span>
-
-                          <span className="pill-check">
-                            {isSelected
-                              ? '✓'
-                              : '+'}
-                          </span>
-
-                        </div>
-                      );
-                    }
-                  )}
-
-                </div>
-              )}
-
-              <div className="builder-footer">
-
-                <span className="selected-count">
-                  Selected:{' '}
-                  <strong>
-                    {selectedPlayerIds.length}
-                  </strong>{' '}
-                  / {myTeam.squad?.length || 0}
-                </span>
-
-                {lineupLocked ||
-                myLineupAlreadyIn ? (
-                  <div
-                    className="badge-ready"
+              {!lineupLocked &&
+                !myLineupAlreadyIn &&
+                mySquadPlayerIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={selectAllSquad}
                     style={{
                       padding:
-                        '10px 16px',
+                        '6px 12px',
+                      borderRadius: 6,
+                      background:
+                        '#3b82f6',
+                      color: '#fff',
+                      border: 'none',
+                      fontWeight: 600,
+                      cursor:
+                        'pointer',
                     }}
                   >
-                    ✅ Playing XI Confirmed
-                  </div>
-                ) : (
-                  <button
-                    className="confirm-lineup-btn"
-                    disabled={
-                      (myTeam.squad?.length ||
-                        0) >= 11
-                        ? selectedPlayerIds.length !==
-                          11
-                        : selectedPlayerIds.length <
-                          Math.min(
-                            2,
-                            myTeam.squad?.length ||
-                              0
-                          )
-                    }
-                    onClick={
-                      handleConfirmLineup
-                    }
-                  >
-                    CONFIRM PLAYING XI ✓
+                    Select All (
+                    {Math.min(
+                      mySquadPlayerIds.length,
+                      11
+                    )}
+                    )
                   </button>
                 )}
 
+            </div>
+
+            {(myTeam.squad || []).length === 0 ? (
+              <p className="empty-squad-notice">
+                No players bought during auction.
+              </p>
+            ) : (
+              <div className="squad-selector-grid">
+
+                {(myTeam.squad as any[]).map(
+                  (
+                    item: PurchasedPlayer | any,
+                    index: number
+                  ) => {
+
+                    const player =
+                      getPlayerFromSquadItem(
+                        item
+                      );
+
+                    if (!player) {
+                      return null;
+                    }
+
+                    const playerId =
+                      player.id;
+
+                    const isSelected =
+                      selectedPlayerIds.includes(
+                        playerId
+                      );
+
+                    return (
+                      <div
+                        key={
+                          playerId || index
+                        }
+                        className={`squad-select-pill ${
+                          isSelected
+                            ? 'selected'
+                            : ''
+                        }`}
+                        onClick={() =>
+                          togglePlayerSelection(
+                            playerId
+                          )
+                        }
+                        style={{
+                          opacity:
+                            lineupLocked ||
+                            myLineupAlreadyIn
+                              ? 0.7
+                              : 1,
+                          cursor:
+                            lineupLocked ||
+                            myLineupAlreadyIn
+                              ? 'default'
+                              : 'pointer',
+                        }}
+                      >
+
+                        <span className="pill-role">
+                          {(
+                            player.role ||
+                            'PLY'
+                          )
+                            .toString()
+                            .substring(
+                              0,
+                              3
+                            )}
+                        </span>
+
+                        <span className="pill-name">
+                          {player.name}
+                        </span>
+
+                        <span className="pill-check">
+                          {isSelected
+                            ? '✓'
+                            : '+'}
+                        </span>
+
+                      </div>
+                    );
+                  }
+                )}
+
               </div>
+            )}
+
+            <div className="builder-footer">
+
+              <span className="selected-count">
+                Selected:{' '}
+                <strong>
+                  {selectedPlayerIds.length}
+                </strong>{' '}
+                / {mySquadPlayerIds.length}
+              </span>
+
+              {lineupLocked ||
+              myLineupAlreadyIn ? (
+                <div
+                  className="badge-ready"
+                  style={{
+                    padding:
+                      '10px 16px',
+                  }}
+                >
+                  ✅ Playing XI Confirmed
+                </div>
+              ) : (
+                <button
+                  className="confirm-lineup-btn"
+                  disabled={
+                    isConfirmDisabled
+                  }
+                  onClick={
+                    handleConfirmLineup
+                  }
+                >
+                  CONFIRM PLAYING XI ✓
+                </button>
+              )}
 
             </div>
-          )}
 
-        {/* HOST MATCH LAUNCHER */}
+          </div>
+        )}
+
+        {/* =====================================================
+            HOST MATCH LAUNCHER
+        ====================================================== */}
 
         <div className="match-launcher-card">
 
           {hostCheck ? (
-
             <div className="host-launcher-panel">
 
               <h3
@@ -873,22 +900,23 @@ export const FinishScreen: React.FC = () => {
                 <div className="overs-btn-group">
 
                   {[2, 5, 10, 20].map(
-                    (ov) => (
+                    (overs) => (
                       <button
-                        key={ov}
+                        key={overs}
                         type="button"
                         className={`over-btn ${
-                          selectedOvers === ov
+                          selectedOvers ===
+                          overs
                             ? 'active'
                             : ''
                         }`}
                         onClick={() =>
                           setSelectedOvers(
-                            ov
+                            overs
                           )
                         }
                       >
-                        {ov} OVERS
+                        {overs} OVERS
                       </button>
                     )
                   )}
@@ -899,8 +927,8 @@ export const FinishScreen: React.FC = () => {
 
               {!allLineupsSubmitted && (
                 <div className="waiting-banner">
-                  ⏳ Waiting for all managers to
-                  confirm their Playing XI...
+                  ⏳ Waiting for all managers
+                  to confirm their Playing XI...
                 </div>
               )}
 
@@ -918,35 +946,32 @@ export const FinishScreen: React.FC = () => {
               </button>
 
             </div>
-
           ) : (
-
             <div className="guest-launcher-panel">
 
               {myLineupAlreadyIn ||
               lineupLocked ? (
-
                 <div className="guest-waiting-msg">
                   <span className="pulse-dot" />{' '}
                   Waiting for Host to select
                   overs and launch the match...
                 </div>
-
               ) : (
-
                 <div className="guest-action-msg">
-                  ⚠️ Confirm your Playing XI in
-                  the “My Playing XI” tab. Only
-                  Host can start the match.
+                  ⚠️ Confirm your Playing XI
+                  in the “My Playing XI” tab.
+                  Only Host can start the match.
                 </div>
-
               )}
 
             </div>
-
           )}
 
         </div>
+
+        {/* =====================================================
+            ERROR
+        ====================================================== */}
 
         {error && (
           <div className="finish-error-toast">
