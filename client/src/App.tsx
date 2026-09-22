@@ -20,23 +20,36 @@ function AppContent() {
     clearError,
   } = useGame();
 
-  // Mobile Landscape / Portrait Check State
+  // Mobile Landscape / Portrait Check
   const [isPortrait, setIsPortrait] = useState<boolean>(
     window.innerHeight > window.innerWidth && window.innerWidth < 768
   );
 
   useEffect(() => {
     const handleResize = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth && window.innerWidth < 768);
+      setIsPortrait(
+        window.innerHeight > window.innerWidth &&
+        window.innerWidth < 768
+      );
     };
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Attempt orientation lock on supported mobile browsers
-    if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-      window.screen.orientation.lock('landscape').catch(() => {
-        // Ignored if user hasn't interacted or browser blocks lock
+    // Attempt orientation lock on supported mobile browsers.
+    // Some TypeScript DOM versions don't expose `lock`,
+    // so we safely extend the type here.
+    const orientation = window.screen?.orientation as
+      | (ScreenOrientation & {
+          lock?: (
+            orientation: OrientationLockType
+          ) => Promise<void>;
+        })
+      | undefined;
+
+    if (orientation?.lock) {
+      orientation.lock('landscape').catch(() => {
+        // Browser may block orientation lock.
       });
     }
 
@@ -47,7 +60,9 @@ function AppContent() {
   }, []);
 
   const renderScreen = () => {
-    if (!roomData) return <Home />;
+    if (!roomData) {
+      return <Home />;
+    }
 
     switch (roomData.gameState) {
       case 'LOBBY':
@@ -56,12 +71,10 @@ function AppContent() {
       case 'MATCH_PLAYING':
         return <MatchScreen />;
 
-      // End Auction & Lineup Selection land on FinishScreen
       case 'LINEUP_SELECTION':
       case 'FINISHED':
         return <FinishScreen />;
 
-      // Live Auction Phases
       case 'AUCTION':
       case 'PLAYER_REVEAL':
       case 'SOLD':
@@ -79,28 +92,53 @@ function AppContent() {
     <div className="app">
       {/* Mobile Orientation Overlay */}
       {isPortrait && (
-        <div className="portrait-warning-overlay" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: '#090d16',
-          color: '#ffffff',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          textAlign: 'center',
-          padding: '20px'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '15px' }}>📱</div>
-          <h2 style={{ fontSize: '1.5rem', color: '#f59e0b', margin: '0 0 10px 0' }}>
+        <div
+          className="portrait-warning-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#090d16',
+            color: '#ffffff',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '3rem',
+              marginBottom: '15px',
+            }}
+          >
+            📱
+          </div>
+
+          <h2
+            style={{
+              fontSize: '1.5rem',
+              color: '#f59e0b',
+              margin: '0 0 10px 0',
+            }}
+          >
             PLEASE ROTATE YOUR PHONE
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.95rem', maxWidth: '300px' }}>
-            IPL Auction Battle is optimized for Landscape view for full field &amp; auction visibility.
+
+          <p
+            style={{
+              color: '#94a3b8',
+              fontSize: '0.95rem',
+              maxWidth: '300px',
+            }}
+          >
+            IPL Auction Battle is optimized for Landscape view
+            for full field &amp; auction visibility.
           </p>
         </div>
       )}
@@ -115,19 +153,25 @@ function AppContent() {
 
       {/* Notifications */}
       {notification && (
-        <div className="notification" onClick={clearNotification}>
+        <div
+          className="notification"
+          onClick={clearNotification}
+        >
           {notification}
         </div>
       )}
 
       {/* Errors */}
       {error && (
-        <div className="notification error-notification" onClick={clearError}>
+        <div
+          className="notification error-notification"
+          onClick={clearError}
+        >
           ⚠️ {error}
         </div>
       )}
 
-      {/* Sold / Unsold Animations */}
+      {/* Sold Animation */}
       {soldAnimation && soldAnimation.player && (
         <SoldAnimation
           playerName={soldAnimation.player.name}
@@ -137,6 +181,7 @@ function AppContent() {
         />
       )}
 
+      {/* Unsold Animation */}
       {unsoldAnimation && unsoldAnimation.player && (
         <SoldAnimation
           playerName={unsoldAnimation.player.name}
