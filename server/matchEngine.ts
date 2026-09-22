@@ -11,128 +11,100 @@ import {
   BallOutcome,
 } from './types';
 
+/* =========================================================
+   HELPERS
+========================================================= */
+
 function resolveLineupPlayers(
-  lineup: TeamLineup,
+  lineup: TeamLineup | undefined,
   squad: PurchasedPlayer[]
 ): Player[] {
-  const byId = new Map(squad.map((s) => [s.player.id, s.player]));
-  const xi: Player[] = [];
-
-  for (const id of lineup.playingXI) {
-    const p = byId.get(id);
-    if (p) xi.push(p);
+  if (!squad || squad.length === 0) {
+    return [];
   }
 
-  if (lineup.impactPlayerId) {
-    const impact = byId.get(lineup.impactPlayerId);
+  const byId = new Map(
+    squad.map((s) => [s.player.id, s.player])
+  );
 
-    if (impact && !xi.find((p) => p.id === impact.id)) {
-      xi.push(impact);
+  const players: Player[] = [];
+
+  /*
+   * Use submitted Playing XI.
+   */
+  if (lineup?.playingXI?.length) {
+    for (const id of lineup.playingXI) {
+      const player = byId.get(id);
+
+      if (
+        player &&
+        !players.some((p) => p.id === player.id)
+      ) {
+        players.push(player);
+      }
     }
   }
 
-  return xi.length === 0 ? squad.map((s) => s.player) : xi;
-}
-
-function createInnings(
-  battingTeamId: string,
-  bowlingTeamId: string,
-  battingLineup: Player[],
-  bowlingLineup: Player[],
-  maxOvers: number
-): InningsState {
-  return {
-    battingTeamId,
-    bowlingTeamId,
-
-    totalRuns: 0,
-    wickets: 0,
-    overs: 0,
-    legalBalls: 0,
-    maxOvers,
-
-    strikerId: battingLineup[0].id,
-    nonStrikerId: battingLineup[1].id,
-
-    currentBowlerId: selectBestBowler(bowlingLineup, []),
-
-    battingLineup,
-    bowlingLineup,
-
-    nextBatterIndex: 2,
-
-    oversHistory: [],
-
-    isCompleted: false,
-
-    // FIX: total is required by Extras
-    extras: {
-      wides: 0,
-      noBalls: 0,
-      byes: 0,
-      legByes: 0,
-      total: 0,
-    },
-
-    isFreeHitActive: false,
-  };
-}
-
-export function initializeMatch(
-  roomCode: string,
-  team1Id: string,
-  team1Lineup: TeamLineup,
-  team1Squad: PurchasedPlayer[],
-  team2Id: string,
-  team2Lineup: TeamLineup,
-  team2Squad: PurchasedPlayer[],
-  totalOvers: number = 2
-): LiveMatchState {
-  const team1Players = resolveLineupPlayers(
-    team1Lineup,
-    team1Squad
-  );
-
-  const team2Players = resolveLineupPlayers(
-    team2Lineup,
-    team2Squad
-  );
-
-  if (team1Players.length < 2 || team2Players.length < 2) {
-    throw new Error(
-      'Both teams must have at least 2 players to play the match.'
+  /*
+   * Add impact player if submitted.
+   */
+  if (lineup?.impactPlayerId) {
+    const impactPlayer = byId.get(
+      lineup.impactPlayerId
     );
+
+    if (
+      impactPlayer &&
+      !players.some(
+        (p) => p.id === impactPlayer.id
+      )
+    ) {
+      players.push(impactPlayer);
+    }
   }
 
-  return {
-    roomCode,
-    totalOvers,
+  /*
+   * If no valid Playing XI was submitted,
+   * automatically use the first players from squad.
+   */
+  if (players.length === 0) {
+    return squad
+      .map((s) => s.player)
+      .filter(Boolean)
+      .slice(0, 11);
+  }
 
-    currentInnings: 1,
-
-    innings1: createInnings(
-      team1Id,
-      team2Id,
-      team1Players,
-      team2Players,
-      totalOvers
-    ),
-
-    phase: 'AWAITING_DELIVERY',
-  };
+  return players.slice(0, 12);
 }
+
+/* =========================================================
+   BOWLER SELECTION
+========================================================= */
 
 export function selectBestBowler(
   bowlingSquad: Player[],
   previousBowlerIds: string[]
 ): string {
+  if (!bowlingSquad.length) {
+    throw new Error(
+      'Bowling team has no available players.'
+    );
+  }
+
   const lastBowler =
-    previousBowlerIds[previousBowlerIds.length - 1];
+    previousBowlerIds[
+      previousBowlerIds.length - 1
+    ];
+
+  /*
+   * Your Player type uses:
+   * 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper'
+   */
 
   const preferred = bowlingSquad.filter(
-    (p) =>
-      p.role === 'Bowler' ||
-      p.role === 'All-Rounder'
+    (player) =>
+      player.role === 'Bowler' ||
+      player.role === 'All-Rounder'
   );
 
   const pool =
@@ -141,9 +113,14 @@ export function selectBestBowler(
       : bowlingSquad;
 
   let available = pool.filter(
-    (p) => p.id !== lastBowler
+    (player) =>
+      player.id !== lastBowler
   );
 
+  /*
+   * If only one bowler is available,
+   * allow the same bowler again.
+   */
   if (available.length === 0) {
     available = [...pool];
   }
@@ -160,6 +137,155 @@ export function selectBestBowler(
   );
 }
 
+/* =========================================================
+   CREATE INNINGS
+========================================================= */
+
+function createInnings(
+  battingTeamId: string,
+  bowlingTeamId: string,
+  battingLineup: Player[],
+  bowlingLineup: Player[],
+  maxOvers: number
+): InningsState {
+  if (battingLineup.length < 2) {
+    throw new Error(
+      'Batting team must have at least 2 players.'
+    );
+  }
+
+  if (bowlingLineup.length < 1) {
+    throw new Error(
+      'Bowling team must have at least 1 player.'
+    );
+  }
+
+  const currentBowlerId =
+    selectBestBowler(
+      bowlingLineup,
+      []
+    );
+
+  return {
+    battingTeamId,
+    bowlingTeamId,
+
+    totalRuns: 0,
+    wickets: 0,
+
+    overs: 0,
+    legalBalls: 0,
+    maxOvers,
+
+    strikerId:
+      battingLineup[0].id,
+
+    nonStrikerId:
+      battingLineup[1].id,
+
+    currentBowlerId,
+
+    battingLineup,
+    bowlingLineup,
+
+    nextBatterIndex: 2,
+
+    oversHistory: [],
+
+    isCompleted: false,
+
+    extras: {
+      wides: 0,
+      noBalls: 0,
+      byes: 0,
+      legByes: 0,
+      total: 0,
+    },
+
+    isFreeHitActive: false,
+  };
+}
+
+/* =========================================================
+   INITIALIZE MATCH
+========================================================= */
+
+export function initializeMatch(
+  roomCode: string,
+  team1Id: string,
+  team1Lineup: TeamLineup,
+  team1Squad: PurchasedPlayer[],
+  team2Id: string,
+  team2Lineup: TeamLineup,
+  team2Squad: PurchasedPlayer[],
+  totalOvers: number = 5
+): LiveMatchState {
+  /*
+   * Keep overs inside supported values.
+   */
+  const validOvers =
+    [2, 5, 10, 20].includes(totalOvers)
+      ? totalOvers
+      : 5;
+
+  const team1Players =
+    resolveLineupPlayers(
+      team1Lineup,
+      team1Squad
+    );
+
+  const team2Players =
+    resolveLineupPlayers(
+      team2Lineup,
+      team2Squad
+    );
+
+  if (team1Players.length < 2) {
+    throw new Error(
+      'Team 1 must have at least 2 players.'
+    );
+  }
+
+  if (team2Players.length < 1) {
+    throw new Error(
+      'Team 2 must have at least 1 player.'
+    );
+  }
+
+  const innings1 =
+    createInnings(
+      team1Id,
+      team2Id,
+      team1Players,
+      team2Players,
+      validOvers
+    );
+
+  return {
+    roomCode,
+
+    totalOvers: validOvers,
+
+    currentInnings: 1,
+
+    innings1,
+
+    innings2: undefined,
+
+    phase: 'AWAITING_DELIVERY',
+
+    /*
+     * These fields are intentionally omitted here
+     * because LiveMatchState in your matchEngine
+     * does not define them.
+     */
+  };
+}
+
+/* =========================================================
+   CALCULATE BALL OUTCOME
+========================================================= */
+
 export function calculateBallOutcome(
   delivery: DeliveryInput,
   shot: ShotInput,
@@ -174,16 +300,17 @@ export function calculateBallOutcome(
     bowler.bowlingRating || 50;
 
   const statRatio =
-    batRating / Math.max(bowlRating, 1);
+    batRating /
+    Math.max(bowlRating, 1);
 
   const timing = Math.max(
     0,
     Math.min(1, shot.timing)
   );
 
-  // --------------------------------------------------
-  // 1. NO-BALL CHECK
-  // --------------------------------------------------
+  /* =====================================================
+     NO BALL
+  ===================================================== */
 
   const overstepChance =
     delivery.zone === 'YORKER'
@@ -193,11 +320,12 @@ export function calculateBallOutcome(
   const isNoBall =
     Math.random() < overstepChance;
 
-  // --------------------------------------------------
-  // SHOT QUALITY
-  // --------------------------------------------------
+  /* =====================================================
+     SHOT QUALITY
+  ===================================================== */
 
-  let shotQuality: BallOutcome['shotQuality'] =
+  let shotQuality:
+    BallOutcome['shotQuality'] =
     'MISSED';
 
   if (timing > 0.85) {
@@ -210,9 +338,9 @@ export function calculateBallOutcome(
     shotQuality = 'LATE';
   }
 
-  // --------------------------------------------------
-  // LINE MATCH
-  // --------------------------------------------------
+  /* =====================================================
+     LINE MATCH
+  ===================================================== */
 
   let lineMatch = false;
 
@@ -237,9 +365,9 @@ export function calculateBallOutcome(
     lineMatch = true;
   }
 
-  // --------------------------------------------------
-  // 2. WIDE CHECK
-  // --------------------------------------------------
+  /* =====================================================
+     WIDE
+  ===================================================== */
 
   if (
     shotQuality === 'MISSED' ||
@@ -256,6 +384,7 @@ export function calculateBallOutcome(
         isWicket: false,
         isExtra: true,
         isWide: true,
+        isNoBall: false,
         shotQuality: 'MISSED',
         commentary:
           `↔️ WIDE! Down the leg side by ${bowler.name}.`,
@@ -272,6 +401,7 @@ export function calculateBallOutcome(
         isWicket: false,
         isExtra: true,
         isWide: true,
+        isNoBall: false,
         shotQuality: 'MISSED',
         commentary:
           `↔️ WIDE! Way outside off stump.`,
@@ -279,39 +409,54 @@ export function calculateBallOutcome(
     }
   }
 
-  // --------------------------------------------------
-  // WICKET PROCESSOR
-  // --------------------------------------------------
+  /* =====================================================
+     WICKET PROCESSOR
+  ===================================================== */
 
   const processWicket = (
     type: 'BOWLED' | 'CAUGHT',
-    defaultCommentary: string
+    commentary: string
   ): BallOutcome => {
+    /*
+     * No wicket on free hit or no-ball.
+     */
     if (isFreeHit || isNoBall) {
       return {
         runs: isNoBall ? 1 : 0,
+
         isWicket: false,
+
         isExtra: isNoBall,
+
         isNoBall,
+
         shotQuality,
+
         commentary:
-          `🚨 ${defaultCommentary} BUT IT'S A FREE HIT! Batter survives!`,
+          `🚨 ${commentary} BUT IT'S A FREE HIT! Batter survives!`,
       };
     }
 
     return {
       runs: 0,
+
       isWicket: true,
+
       wicketType: type,
+
       isExtra: false,
+
+      isNoBall: false,
+
       shotQuality,
-      commentary: defaultCommentary,
+
+      commentary,
     };
   };
 
-  // --------------------------------------------------
-  // 3. PERFECT CONTACT
-  // --------------------------------------------------
+  /* =====================================================
+     PERFECT CONTACT
+  ===================================================== */
 
   if (shotQuality === 'PERFECT') {
     const runs =
@@ -335,18 +480,25 @@ export function calculateBallOutcome(
     }
 
     return {
-      runs: runs + (isNoBall ? 1 : 0),
+      runs:
+        runs +
+        (isNoBall ? 1 : 0),
+
       isWicket: false,
+
       isExtra: isNoBall,
+
       isNoBall,
+
       shotQuality,
+
       commentary,
     };
   }
 
-  // --------------------------------------------------
-  // GOOD CONTACT
-  // --------------------------------------------------
+  /* =====================================================
+     GOOD CONTACT
+  ===================================================== */
 
   if (shotQuality === 'GOOD') {
     if (
@@ -381,66 +533,82 @@ export function calculateBallOutcome(
     }
 
     return {
-      runs: batRuns + (isNoBall ? 1 : 0),
+      runs:
+        batRuns +
+        (isNoBall ? 1 : 0),
+
       isWicket: false,
+
       isExtra: isNoBall,
+
       isNoBall,
+
       shotQuality,
+
       commentary,
     };
   }
 
-  // --------------------------------------------------
-  // 4. EDGES & MISTIMES
-  // --------------------------------------------------
+  /* =====================================================
+     EARLY / LATE
+  ===================================================== */
 
   if (
     shotQuality === 'EARLY' ||
     shotQuality === 'LATE'
   ) {
     const wicketChance =
-      (0.3 / statRatio) *
+      (0.3 / Math.max(statRatio, 0.1)) *
       (lineMatch ? 0.6 : 1.2);
 
-    if (Math.random() < wicketChance) {
-      const wType =
+    if (
+      Math.random() <
+      Math.min(wicketChance, 0.95)
+    ) {
+      const wicketType =
         delivery.zone === 'YORKER'
           ? 'BOWLED'
           : 'CAUGHT';
 
       const commentary =
-        wType === 'BOWLED'
+        wicketType === 'BOWLED'
           ? `🎯 CLEAN BOWLED! ${bowler.name} destroys the stumps!`
           : `✋ CAUGHT! ${batter.name} gets a leading edge!`;
 
       return processWicket(
-        wType,
+        wicketType,
         commentary
       );
     }
 
-    // ------------------------------------------------
-    // LEG BYES
-    // ------------------------------------------------
+    /* ===================================================
+       LEG BYES
+    =================================================== */
 
     if (Math.random() < 0.2) {
-      const lbRuns =
+      const legByeRuns =
         Math.random() < 0.5
           ? 1
           : 0;
 
-      if (lbRuns > 0) {
+      if (legByeRuns > 0) {
         return {
           runs:
-            lbRuns +
+            legByeRuns +
             (isNoBall ? 1 : 0),
+
           isWicket: false,
+
           isExtra: true,
+
           isLegBye: true,
+
           isNoBall,
+
           shotQuality,
+
           commentary:
-            `🦵 Leg byes taken. They scramble for ${lbRuns}.`,
+            `🦵 Leg byes taken. They scramble for ${legByeRuns}.`,
         };
       }
     }
@@ -464,17 +632,22 @@ export function calculateBallOutcome(
       runs:
         batRuns +
         (isNoBall ? 1 : 0),
+
       isWicket: false,
+
       isExtra: isNoBall,
+
       isNoBall,
+
       shotQuality,
+
       commentary,
     };
   }
 
-  // --------------------------------------------------
-  // 5. MISSED
-  // --------------------------------------------------
+  /* =====================================================
+     MISSED - BOWLED
+  ===================================================== */
 
   if (
     delivery.zone === 'YORKER' ||
@@ -482,215 +655,243 @@ export function calculateBallOutcome(
   ) {
     return processWicket(
       'BOWLED',
-      `💥 BOWLED HIM! ${batter.name} swung at thin air!`
+      `💥 BOWLED HIM! ${batter.name} swung at thin air.`
     );
   }
 
-  // --------------------------------------------------
-  // BYES
-  // --------------------------------------------------
+  /* =====================================================
+     BYES
+  ===================================================== */
 
   if (Math.random() < 0.1) {
     return {
       runs:
         1 +
         (isNoBall ? 1 : 0),
+
       isWicket: false,
+
       isExtra: true,
+
       isBye: true,
+
       isNoBall,
+
       shotQuality: 'MISSED',
+
       commentary:
         `🧤 Keeper fumbles! They sneak a Bye.`,
     };
   }
 
-  // --------------------------------------------------
-  // DOT BALL / NO BALL
-  // --------------------------------------------------
+  /* =====================================================
+     DOT / NO BALL
+  ===================================================== */
 
   return {
     runs: isNoBall ? 1 : 0,
+
     isWicket: false,
+
     isExtra: isNoBall,
+
     isNoBall,
+
     shotQuality: 'MISSED',
+
     commentary: isNoBall
       ? `🚨 NO BALL! Swing and a miss.`
       : `❌ Swing and a miss! Dot ball.`,
   };
 }
 
+/* =========================================================
+   APPLY BALL RESULT
+========================================================= */
+
 export function applyBallResult(
   match: LiveMatchState,
   outcome: BallOutcome
 ): LiveMatchState {
-  const inn =
+  const innings =
     match.currentInnings === 1
       ? match.innings1
       : match.innings2;
 
-  if (!inn || inn.isCompleted) {
+  if (!innings || innings.isCompleted) {
     return match;
   }
 
   const bowlerIdThisBall =
-    inn.currentBowlerId;
+    innings.currentBowlerId;
 
-  // --------------------------------------------------
-  // 1. ADD RUNS & EXTRAS
-  // --------------------------------------------------
+  /* =====================================================
+     1. RUNS
+  ===================================================== */
 
-  inn.totalRuns += outcome.runs;
+  innings.totalRuns += outcome.runs;
+
+  /* =====================================================
+     2. EXTRAS
+  ===================================================== */
 
   if (outcome.isWide) {
-    inn.extras.wides += outcome.runs;
+    innings.extras.wides +=
+      outcome.runs;
   }
 
   if (outcome.isNoBall) {
-    // 1 run no-ball penalty
-    inn.extras.noBalls += 1;
+    innings.extras.noBalls += 1;
   }
 
   if (outcome.isBye) {
-    inn.extras.byes +=
+    innings.extras.byes += Math.max(
+      0,
       outcome.runs -
-      (outcome.isNoBall ? 1 : 0);
+        (outcome.isNoBall ? 1 : 0)
+    );
   }
 
   if (outcome.isLegBye) {
-    inn.extras.legByes +=
+    innings.extras.legByes += Math.max(
+      0,
       outcome.runs -
-      (outcome.isNoBall ? 1 : 0);
+        (outcome.isNoBall ? 1 : 0)
+    );
   }
 
-  // FIX:
-  // Keep total extras synchronized.
-  inn.extras.total =
-    inn.extras.wides +
-    inn.extras.noBalls +
-    inn.extras.byes +
-    inn.extras.legByes;
+  innings.extras.total =
+    innings.extras.wides +
+    innings.extras.noBalls +
+    innings.extras.byes +
+    innings.extras.legByes;
 
-  // --------------------------------------------------
-  // 2. BALL COUNTING
-  // Wides and no-balls don't consume legal balls.
-  // --------------------------------------------------
+  /* =====================================================
+     3. LEGAL BALL
+  ===================================================== */
 
   const isLegalDelivery =
     !outcome.isWide &&
     !outcome.isNoBall;
 
   if (isLegalDelivery) {
-    inn.legalBalls += 1;
+    innings.legalBalls += 1;
   }
 
-  inn.overs =
-    Math.floor(inn.legalBalls / 6) +
-    (inn.legalBalls % 6) / 10;
+  innings.overs =
+    Math.floor(
+      innings.legalBalls / 6
+    ) +
+    (innings.legalBalls % 6) / 10;
 
-  // --------------------------------------------------
-  // 3. WICKETS
-  // --------------------------------------------------
+  /* =====================================================
+     4. WICKET
+  ===================================================== */
+
+  const maxWickets =
+    Math.max(
+      1,
+      innings.battingLineup.length - 1
+    );
 
   if (outcome.isWicket) {
-    inn.wickets += 1;
+    innings.wickets += 1;
 
-    const maxWickets =
-      Math.max(
-        1,
-        inn.battingLineup.length - 1
-      );
-
+    /*
+     * Bring in next batter if available.
+     */
     if (
-      inn.wickets < maxWickets &&
-      inn.nextBatterIndex <
-        inn.battingLineup.length
+      innings.wickets <
+        maxWickets &&
+      innings.nextBatterIndex <
+        innings.battingLineup.length
     ) {
-      inn.strikerId =
-        inn.battingLineup[
-          inn.nextBatterIndex
+      innings.strikerId =
+        innings.battingLineup[
+          innings.nextBatterIndex
         ].id;
 
-      inn.nextBatterIndex += 1;
+      innings.nextBatterIndex += 1;
     }
   } else {
-    // Strike rotation on odd runs.
-    // No-ball penalty itself doesn't rotate strike.
-
+    /*
+     * Strike rotation.
+     *
+     * The no-ball penalty itself does not
+     * count toward strike rotation.
+     */
     const runsForRotation =
       outcome.isNoBall
         ? outcome.runs - 1
         : outcome.runs;
 
-    if (runsForRotation % 2 === 1) {
+    if (
+      runsForRotation % 2 === 1
+    ) {
       [
-        inn.strikerId,
-        inn.nonStrikerId,
+        innings.strikerId,
+        innings.nonStrikerId,
       ] = [
-        inn.nonStrikerId,
-        inn.strikerId,
+        innings.nonStrikerId,
+        innings.strikerId,
       ];
     }
   }
 
-  // --------------------------------------------------
-  // 4. FREE HIT MANAGEMENT
-  // --------------------------------------------------
+  /* =====================================================
+     5. FREE HIT
+  ===================================================== */
 
   if (outcome.isNoBall) {
-    inn.isFreeHitActive = true;
+    innings.isFreeHitActive = true;
   } else if (isLegalDelivery) {
-    inn.isFreeHitActive = false;
+    innings.isFreeHitActive = false;
   }
 
-  // --------------------------------------------------
-  // 5. OVER COMPLETION
-  // --------------------------------------------------
+  /* =====================================================
+     6. OVER COMPLETION
+  ===================================================== */
 
   const overJustEnded =
     isLegalDelivery &&
-    inn.legalBalls > 0 &&
-    inn.legalBalls % 6 === 0;
+    innings.legalBalls > 0 &&
+    innings.legalBalls % 6 === 0;
 
   if (overJustEnded) {
-    inn.oversHistory.push({
+    innings.oversHistory.push({
       bowlerId: bowlerIdThisBall,
-      overs: Math.floor(
-        inn.legalBalls / 6
-      ),
+      overs:
+        Math.floor(
+          innings.legalBalls / 6
+        ),
     });
 
-    // Swap strike at end of over
+    /*
+     * Swap strike at end of over.
+     */
     [
-      inn.strikerId,
-      inn.nonStrikerId,
+      innings.strikerId,
+      innings.nonStrikerId,
     ] = [
-      inn.nonStrikerId,
-      inn.strikerId,
+      innings.nonStrikerId,
+      innings.strikerId,
     ];
 
-    const prevIds =
-      inn.oversHistory.map(
-        (o) => o.bowlerId
+    const previousBowlerIds =
+      innings.oversHistory.map(
+        (over) => over.bowlerId
       );
 
-    inn.currentBowlerId =
+    innings.currentBowlerId =
       selectBestBowler(
-        inn.bowlingLineup,
-        prevIds
+        innings.bowlingLineup,
+        previousBowlerIds
       );
   }
 
-  // --------------------------------------------------
-  // 6. MATCH COMPLETION
-  // --------------------------------------------------
-
-  const maxWickets =
-    Math.max(
-      1,
-      inn.battingLineup.length - 1
-    );
+  /* =====================================================
+     7. TARGET
+  ===================================================== */
 
   const target =
     match.currentInnings === 2 &&
@@ -698,90 +899,105 @@ export function applyBallResult(
       ? match.innings1.totalRuns + 1
       : null;
 
-  // Chasing team reached target
+  /* =====================================================
+     8. CHASE COMPLETED
+  ===================================================== */
+
   if (
     target !== null &&
-    inn.totalRuns >= target
+    innings.totalRuns >= target
   ) {
-    inn.isCompleted = true;
+    innings.isCompleted = true;
 
     match.phase = 'MATCH_OVER';
 
     match.winnerTeamId =
-      inn.battingTeamId;
+      innings.battingTeamId;
 
     match.winningMargin =
       `won by ${
-        maxWickets - inn.wickets
+        maxWickets -
+        innings.wickets
       } wickets`;
 
     return match;
   }
 
-  // --------------------------------------------------
-  // INNINGS OVER
-  // --------------------------------------------------
+  /* =====================================================
+     9. INNINGS COMPLETION
+  ===================================================== */
 
   const inningsOver =
-    inn.wickets >= maxWickets ||
-    inn.legalBalls >=
-      inn.maxOvers * 6;
+    innings.wickets >= maxWickets ||
+    innings.legalBalls >=
+      innings.maxOvers * 6;
 
-  if (inningsOver) {
-    inn.isCompleted = true;
+  if (!inningsOver) {
+    return match;
+  }
 
-    // ------------------------------------------------
-    // FIRST INNINGS COMPLETE
-    // ------------------------------------------------
+  innings.isCompleted = true;
 
-    if (match.currentInnings === 1) {
-      match.currentInnings = 2;
+  /* =====================================================
+     FIRST INNINGS -> SECOND INNINGS
+  ===================================================== */
 
-      match.innings2 =
-        createInnings(
-          match.innings1.bowlingTeamId,
-          match.innings1.battingTeamId,
-          match.innings1.bowlingLineup,
-          match.innings1.battingLineup,
-          match.totalOvers
-        );
-    }
+  if (match.currentInnings === 1) {
+    match.currentInnings = 2;
 
-    // ------------------------------------------------
-    // SECOND INNINGS COMPLETE
-    // ------------------------------------------------
+    match.innings2 =
+      createInnings(
+        match.innings1.bowlingTeamId,
+        match.innings1.battingTeamId,
+        match.innings1.bowlingLineup,
+        match.innings1.battingLineup,
+        match.totalOvers
+      );
 
-    else {
-      match.phase = 'MATCH_OVER';
+    match.phase =
+      'AWAITING_DELIVERY';
 
-      const first =
-        match.innings1.totalRuns;
+    return match;
+  }
 
-      const second =
-        inn.totalRuns;
+  /* =====================================================
+     SECOND INNINGS COMPLETE
+  ===================================================== */
 
-      if (first > second) {
-        match.winnerTeamId =
-          match.innings1.battingTeamId;
+  match.phase = 'MATCH_OVER';
 
-        match.winningMargin =
-          `won by ${first - second} runs`;
-      } else if (second > first) {
-        match.winnerTeamId =
-          inn.battingTeamId;
+  const firstRuns =
+    match.innings1.totalRuns;
 
-        match.winningMargin =
-          `won by ${
-            maxWickets - inn.wickets
-          } wickets`;
-      } else {
-        match.winnerTeamId =
-          undefined;
+  const secondRuns =
+    innings.totalRuns;
 
-        match.winningMargin =
-          'Match Tied!';
-      }
-    }
+  if (firstRuns > secondRuns) {
+    match.winnerTeamId =
+      match.innings1.battingTeamId;
+
+    match.winningMargin =
+      `won by ${
+        firstRuns - secondRuns
+      } runs`;
+  } else if (secondRuns > firstRuns) {
+    match.winnerTeamId =
+      innings.battingTeamId;
+
+    match.winningMargin =
+      `won by ${
+        maxWickets -
+        innings.wickets
+      } wickets`;
+  } else {
+    /*
+     * Tie
+     */
+    match.winnerTeamId =
+      undefined;
+
+    match.winningMargin =
+      'Match Tied!';
   }
 
   return match;
