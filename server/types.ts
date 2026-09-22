@@ -40,19 +40,26 @@ export interface AuctionState {
   currentBid: number;
   highestBidderId: string | null;
   highestBidderName: string | null;
+
   auctionTimer: number;
   maxTimer: number;
+
   bidIncrement: number;
+
   auctionedPlayerIds: string[];
+
   soldPlayers: {
     player: Player;
     teamId: string;
     price: number;
   }[];
+
   unsoldPlayers: string[];
+
   currentPlayerIndex: number;
   totalPlayers: number;
   auctionRound: number;
+
   isPaused: boolean;
 }
 
@@ -120,7 +127,10 @@ export interface ShotInput {
   timing: number;
 }
 
-// -------------- NEW: Extras tracking --------------
+// ----------------------------------------------------
+// EXTRAS
+// ----------------------------------------------------
+
 export interface Extras {
   wides: number;
   noBalls: number;
@@ -131,20 +141,31 @@ export interface Extras {
 
 export interface BallOutcome {
   runs: number;
+
   isWicket: boolean;
+
   wicketType?:
     | 'BOWLED'
     | 'CAUGHT'
     | 'LBW'
     | 'STUMPED'
     | 'RUN OUT';
+
   isExtra: boolean;
-  extraType?: 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
+
+  extraType?:
+    | 'WIDE'
+    | 'NO_BALL'
+    | 'BYE'
+    | 'LEG_BYE';
+
   isNoBall?: boolean;
   isWide?: boolean;
   isBye?: boolean;
   isLegBye?: boolean;
+
   commentary: string;
+
   shotQuality:
     | 'PERFECT'
     | 'GOOD'
@@ -160,12 +181,16 @@ export interface BallOutcome {
 export interface BallRecord {
   overNumber: number;
   ballNumber: number;
+
   bowlerId: string;
   bowlerName: string;
+
   strikerId: string;
   strikerName: string;
+
   runs: number;
   isWicket: boolean;
+
   commentary: string;
 }
 
@@ -207,7 +232,6 @@ export interface InningsState {
 
   isCompleted: boolean;
 
-  // -------------- NEW: Extras + Free Hit --------------
   extras: Extras;
   isFreeHitActive: boolean;
 }
@@ -249,6 +273,7 @@ export interface LiveMatchState {
 export interface TeamInfo {
   id: string;
   socketId: string;
+
   playerName: string;
 
   teamName: string;
