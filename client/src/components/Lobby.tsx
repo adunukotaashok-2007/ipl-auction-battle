@@ -17,65 +17,131 @@ function Lobby() {
   if (!roomData) return null;
 
   const connectedTeams = roomData.teams.filter(
-    (t) => t.isConnected
+    (team) => team.isConnected
   );
 
   const allReady =
     connectedTeams.length >= 2 &&
     connectedTeams.every(
-      (t) => t.isReady || t.isHost
+      (team) => team.isReady || team.isHost
     );
 
   const myTeam = roomData.teams.find(
-    (t) => t.id === myTeamId
+    (team) => team.id === myTeamId
   );
 
   return (
     <div className="lobby">
 
-      {/* ==========================================
-          HEADER
-          ========================================== */}
-      <header className="lobby-header">
+      {/* =====================================================
+          LOBBY HEADER
+          ===================================================== */}
+
+      <div className="lobby-header">
+
         <h1 className="lobby-title">
           🏏 AUCTION LOBBY
         </h1>
-      </header>
 
-      {/* ==========================================
-          SIDE-BY-SIDE LOBBY CONTENT
-          ========================================== */}
-      <div className="lobby-layout">
+        <div className="room-code-display">
 
-        {/* ========================================
-            LEFT SIDE — TEAMS
-            ======================================== */}
-        <section className="lobby-teams-panel">
+          <span className="room-code-label">
+            Room Code
+          </span>
+
+          <span className="room-code-value">
+            {roomData.code}
+          </span>
+
+          <button
+            className="copy-btn"
+            onClick={() => {
+              navigator.clipboard
+                .writeText(roomData.code)
+                .catch(() => {});
+            }}
+            title="Copy room code"
+            type="button"
+          >
+            📋
+          </button>
+
+        </div>
+
+      </div>
+
+      {/* =====================================================
+          LOBBY INFORMATION
+          ===================================================== */}
+
+      <div className="lobby-info">
+
+        <div className="info-chip">
+          <span>👥</span>
+          <span>
+            {connectedTeams.length}/
+            {roomData.settings.maxPlayers} Players
+          </span>
+        </div>
+
+        <div className="info-chip">
+          <span>💰</span>
+          <span>
+            ₹{roomData.settings.initialPurse} Cr Purse
+          </span>
+        </div>
+
+        <div className="info-chip">
+          <span>🏏</span>
+          <span>
+            {roomData.auction.totalPlayers} Players
+          </span>
+        </div>
+
+      </div>
+
+      {/* =====================================================
+          MAIN SIDE-BY-SIDE LAYOUT
+          ===================================================== */}
+
+      <div className="lobby-main-grid">
+
+        {/* ===================================================
+            TEAMS PANEL
+            =================================================== */}
+
+        <div className="teams-panel">
 
           <div className="teams-list">
+
             <h2 className="teams-list-title">
               Teams
             </h2>
 
-            <div className="teams-container">
-              {roomData.teams.map((team) => (
+            {roomData.teams.map((team) => {
+
+              const isMyTeam = team.id === myTeamId;
+              const isDisconnected = !team.isConnected;
+
+              return (
                 <div
                   key={team.id}
-                  className={`team-row ${
-                    team.id === myTeamId
-                      ? 'my-team'
-                      : ''
-                  } ${
-                    !team.isConnected
-                      ? 'disconnected'
-                      : ''
-                  }`}
+                  className={[
+                    'team-row',
+                    isMyTeam ? 'my-team' : '',
+                    isDisconnected ? 'disconnected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   style={{
-                    borderLeftColor:
-                      team.teamColor,
+                    borderLeftColor: team.teamColor,
                   }}
                 >
-                  {/* TEAM LEFT */}
+
+                  {/* ===============================
+                      TEAM INFORMATION
+                      =============================== */}
+
                   <div className="team-row-left">
 
                     <span className="team-row-logo">
@@ -83,6 +149,7 @@ function Lobby() {
                     </span>
 
                     <div className="team-row-info">
+
                       <span className="team-row-name">
                         {team.teamName}
                       </span>
@@ -90,11 +157,15 @@ function Lobby() {
                       <span className="team-row-player">
                         {team.playerName}
                       </span>
+
                     </div>
 
                   </div>
 
-                  {/* TEAM RIGHT */}
+                  {/* ===============================
+                      TEAM STATUS
+                      =============================== */}
+
                   <div className="team-row-right">
 
                     {team.isHost && (
@@ -124,95 +195,41 @@ function Lobby() {
                         </span>
                       )}
 
-                    {team.id === myTeamId && (
+                    {isMyTeam && (
                       <span className="you-badge">
                         YOU
                       </span>
                     )}
 
                   </div>
+
                 </div>
-              ))}
-            </div>
-          </div>
-
-        </section>
-
-        {/* ========================================
-            RIGHT SIDE — ROOM + GAME INFORMATION
-            ======================================== */}
-        <aside className="lobby-sidebar">
-
-          {/* ROOM CODE */}
-          <div className="room-section">
-
-            <div className="room-code-label">
-              Room Code
-            </div>
-
-            <div className="room-code-display">
-
-              <span className="room-code-value">
-                {roomData.code}
-              </span>
-
-              <button
-                className="copy-btn"
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    roomData.code
-                  );
-                }}
-                aria-label="Copy room code"
-              >
-                📋
-              </button>
-
-            </div>
+              );
+            })}
 
           </div>
 
-          {/* GAME INFORMATION */}
-          <div className="lobby-info">
+        </div>
 
-            <div className="info-chip">
-              <span>👥</span>
-              <div>
-                <strong>
-                  {connectedTeams.length}/
-                  {roomData.settings.maxPlayers}
-                </strong>
-                <small>Players</small>
-              </div>
-            </div>
+        {/* ===================================================
+            LOBBY CONTROLS PANEL
+            =================================================== */}
 
-            <div className="info-chip">
-              <span>💰</span>
-              <div>
-                <strong>
-                  ₹{roomData.settings.initialPurse}
-                </strong>
-                <small>Cr Purse</small>
-              </div>
-            </div>
+        <div className="lobby-actions-panel">
 
-            <div className="info-chip">
-              <span>🏏</span>
-              <div>
-                <strong>
-                  {roomData.auction.totalPlayers}
-                </strong>
-                <small>Players</small>
-              </div>
-            </div>
+          <h2 className="lobby-actions-title">
+            🎮 LOBBY CONTROLS
+          </h2>
 
-          </div>
-
-          {/* ACTIONS */}
           <div className="lobby-actions">
+
+            {/* ===============================================
+                NORMAL PLAYER READY BUTTON
+                =============================================== */}
 
             {!isHost && myTeam && (
               <button
+                type="button"
                 className={`btn btn-lg btn-full ${
                   myTeam.isReady
                     ? 'btn-danger'
@@ -226,8 +243,13 @@ function Lobby() {
               </button>
             )}
 
+            {/* ===============================================
+                HOST START AUCTION
+                =============================================== */}
+
             {isHost && (
               <button
+                type="button"
                 className="btn btn-primary btn-lg btn-full"
                 onClick={startAuction}
                 disabled={
@@ -242,7 +264,12 @@ function Lobby() {
               </button>
             )}
 
+            {/* ===============================================
+                LEAVE ROOM
+                =============================================== */}
+
             <button
+              type="button"
               className="btn btn-secondary btn-sm"
               onClick={leaveRoom}
             >
@@ -251,9 +278,10 @@ function Lobby() {
 
           </div>
 
-        </aside>
+        </div>
 
       </div>
+
     </div>
   );
 }
