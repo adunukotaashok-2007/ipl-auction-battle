@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
+
 import Home from './components/Home';
 import Lobby from './components/Lobby';
 import AuctionScreen from './components/AuctionScreen';
 import FinishScreen from './components/FinishScreen';
 import MatchScreen from './components/MatchScreen';
 import SoldAnimation from './components/SoldAnimation';
+import IntroAnimation from './components/IntroAnimation';
+
 import './App.css';
 
 function AppContent() {
@@ -20,15 +23,19 @@ function AppContent() {
     clearError,
   } = useGame();
 
+  // Opening animation
+  const [showIntro, setShowIntro] = useState<boolean>(true);
+
   const [isPortrait, setIsPortrait] = useState<boolean>(
-    window.innerHeight > window.innerWidth && window.innerWidth < 768
+    window.innerHeight > window.innerWidth &&
+      window.innerWidth < 768
   );
 
   useEffect(() => {
     const handleResize = () => {
       setIsPortrait(
         window.innerHeight > window.innerWidth &&
-        window.innerWidth < 768
+          window.innerWidth < 768
       );
     };
 
@@ -48,12 +55,17 @@ function AppContent() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener(
+        'orientationchange',
+        handleResize
+      );
     };
   }, []);
 
   const renderScreen = () => {
-    if (!roomData) return <Home />;
+    if (!roomData) {
+      return <Home />;
+    }
 
     switch (roomData.gameState) {
       case 'LOBBY':
@@ -79,9 +91,28 @@ function AppContent() {
     }
   };
 
+  /*
+   * Show the opening animation first.
+   *
+   * GameProvider is still running behind the animation,
+   * so Socket.IO/game state can initialize normally.
+   */
+  if (showIntro) {
+    return (
+      <IntroAnimation
+        onComplete={() => {
+          setShowIntro(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="app">
 
+      {/* ================================
+          PORTRAIT WARNING
+          ================================ */}
       {isPortrait && (
         <div
           className="portrait-warning-overlay"
@@ -128,12 +159,15 @@ function AppContent() {
               maxWidth: '300px',
             }}
           >
-            IPL Auction Battle is optimized for Landscape view for full field
-            &amp; auction visibility.
+            IPL Auction Battle is optimized for Landscape view
+            for full field &amp; auction visibility.
           </p>
         </div>
       )}
 
+      {/* ================================
+          CONNECTION STATUS
+          ================================ */}
       {!connected && (
         <div className="connection-banner">
           <div className="connection-dot"></div>
@@ -141,6 +175,9 @@ function AppContent() {
         </div>
       )}
 
+      {/* ================================
+          NORMAL NOTIFICATION
+          ================================ */}
       {notification && (
         <div
           className="notification"
@@ -150,6 +187,9 @@ function AppContent() {
         </div>
       )}
 
+      {/* ================================
+          ERROR NOTIFICATION
+          ================================ */}
       {error && (
         <div
           className="notification error-notification"
@@ -159,6 +199,9 @@ function AppContent() {
         </div>
       )}
 
+      {/* ================================
+          SOLD ANIMATION
+          ================================ */}
       {soldAnimation && soldAnimation.player && (
         <SoldAnimation
           playerName={soldAnimation.player.name}
@@ -168,6 +211,9 @@ function AppContent() {
         />
       )}
 
+      {/* ================================
+          UNSOLD ANIMATION
+          ================================ */}
       {unsoldAnimation && unsoldAnimation.player && (
         <SoldAnimation
           playerName={unsoldAnimation.player.name}
@@ -177,6 +223,9 @@ function AppContent() {
         />
       )}
 
+      {/* ================================
+          MAIN GAME SCREEN
+          ================================ */}
       {renderScreen()}
     </div>
   );
