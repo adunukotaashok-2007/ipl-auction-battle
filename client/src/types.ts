@@ -38,7 +38,11 @@ export interface AuctionState {
   maxTimer: number;
   bidIncrement: number;
   auctionedPlayerIds: string[];
-  soldPlayers: { player: Player; teamId: string; price: number }[];
+  soldPlayers: {
+    player: Player;
+    teamId: string;
+    price: number;
+  }[];
   unsoldPlayers: string[];
   currentPlayerIndex: number;
   totalPlayers: number;
@@ -70,10 +74,53 @@ export interface TeamRanking {
 // REALISTIC MATCH ENGINE TYPES
 // ----------------------------------------------------
 
-export type PitchZone = 'YORKER' | 'GOOD_LENGTH' | 'SHORT' | 'FULL_TOSS';
-export type PitchLine = 'OUTSIDE_OFF' | 'MIDDLE' | 'LEG';
-export type ShotDirection = 'OFF' | 'STRAIGHT' | 'LEG';
-export type ShotType = 'GROUND' | 'LOFTED';
+/*
+ * Bowling length / pitch zone.
+ *
+ * These values are shared between:
+ * - CricketMatchCanvas
+ * - MatchScreen
+ * - GameContext
+ * - Socket.IO match events
+ */
+export type PitchZone =
+  | 'YORKER'
+  | 'FULL'
+  | 'GOOD_LENGTH'
+  | 'SHORT'
+  | 'BOUNCER';
+
+/*
+ * Bowling line.
+ */
+export type PitchLine =
+  | 'WIDE_OFF'
+  | 'OFF'
+  | 'MIDDLE'
+  | 'LEG'
+  | 'WIDE_LEG';
+
+/*
+ * Batting shot direction.
+ */
+export type ShotDirection =
+  | 'STRAIGHT'
+  | 'COVER'
+  | 'POINT'
+  | 'SQUARE_LEG'
+  | 'MID_WICKET'
+  | 'FINE_LEG';
+
+/*
+ * Batting shot type.
+ */
+export type ShotType =
+  | 'GROUND'
+  | 'LOFT'
+  | 'DRIVE'
+  | 'CUT'
+  | 'PULL'
+  | 'SWEEP';
 
 export interface DeliveryInput {
   zone: PitchZone;
@@ -87,7 +134,10 @@ export interface ShotInput {
   timing: number;
 }
 
-// -------------- NEW: Extras tracking --------------
+// ----------------------------------------------------
+// EXTRAS TRACKING
+// ----------------------------------------------------
+
 export interface Extras {
   wides: number;
   noBalls: number;
@@ -99,15 +149,34 @@ export interface Extras {
 export interface BallOutcome {
   runs: number;
   isWicket: boolean;
-  wicketType?: 'BOWLED' | 'CAUGHT' | 'LBW' | 'STUMPED' | 'RUN OUT';
+  wicketType?:
+    | 'BOWLED'
+    | 'CAUGHT'
+    | 'LBW'
+    | 'STUMPED'
+    | 'RUN OUT';
+
   isExtra: boolean;
-  extraType?: 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
+
+  extraType?:
+    | 'WIDE'
+    | 'NO_BALL'
+    | 'BYE'
+    | 'LEG_BYE';
+
   isNoBall?: boolean;
   isWide?: boolean;
   isBye?: boolean;
   isLegBye?: boolean;
+
   commentary: string;
-  shotQuality: 'PERFECT' | 'GOOD' | 'EARLY' | 'LATE' | 'MISSED';
+
+  shotQuality:
+    | 'PERFECT'
+    | 'GOOD'
+    | 'EARLY'
+    | 'LATE'
+    | 'MISSED';
 }
 
 export interface BallRecord {
@@ -130,21 +199,30 @@ export interface OverSummary {
 export interface InningsState {
   battingTeamId: string;
   bowlingTeamId: string;
+
   totalRuns: number;
   wickets: number;
   overs: number;
   legalBalls: number;
   maxOvers: number;
+
   strikerId: string;
   nonStrikerId: string;
   currentBowlerId: string;
+
   battingLineup: Player[];
   bowlingLineup: Player[];
+
   nextBatterIndex: number;
+
   oversHistory: OverSummary[];
+
   isCompleted: boolean;
 
-  // -------------- NEW: Extras + Free Hit --------------
+  // --------------------------------------------------
+  // Extras + Free Hit
+  // --------------------------------------------------
+
   extras: Extras;
   isFreeHitActive: boolean;
 }
@@ -152,12 +230,22 @@ export interface InningsState {
 export interface LiveMatchState {
   roomCode: string;
   totalOvers: number;
+
   currentInnings: 1 | 2;
+
   innings1: InningsState;
   innings2?: InningsState;
-  phase: 'AWAITING_DELIVERY' | 'BALL_IN_FLIGHT' | 'RESULT_SHOWCASE' | 'MATCH_OVER';
+
+  phase:
+    | 'AWAITING_DELIVERY'
+    | 'BALL_IN_FLIGHT'
+    | 'RESULT_SHOWCASE'
+    | 'MATCH_OVER';
+
   pendingDelivery?: DeliveryInput;
+
   lastOutcome?: BallOutcome;
+
   winnerTeamId?: string;
   winningMargin?: string;
 }
@@ -173,25 +261,37 @@ export interface TeamPublicData {
   teamShortName: string;
   teamColor: string;
   teamLogo: string;
+
   purse: number;
   initialPurse: number;
+
   squad: PurchasedPlayer[];
+
   skippedPlayerCount: number;
+
   isReady: boolean;
   isConnected: boolean;
   isHost: boolean;
+
   squadSize: number;
   maxSquadSize: number;
+
   lineupSubmitted?: boolean;
 }
 
 export interface RoomPublicData {
   code: string;
+
   teams: TeamPublicData[];
+
   gameState: GameState;
+
   auction: AuctionState;
+
   hostId: string;
+
   rankings?: TeamRanking[];
+
   settings: {
     initialPurse: number;
     maxSquadSize: number;
@@ -209,14 +309,64 @@ export interface IPLTeamPreset {
 }
 
 export const IPL_TEAMS: IPLTeamPreset[] = [
-  { name: 'Chennai Super Kings', shortName: 'CSK', color: '#FFFF00', logo: '🦁' },
-  { name: 'Mumbai Indians', shortName: 'MI', color: '#004BA0', logo: '🔵' },
-  { name: 'Royal Challengers Bengaluru', shortName: 'RCB', color: '#EC1C24', logo: '🔴' },
-  { name: 'Kolkata Knight Riders', shortName: 'KKR', color: '#3A225D', logo: '🟣' },
-  { name: 'Sunrisers Hyderabad', shortName: 'SRH', color: '#FF822A', logo: '🟠' },
-  { name: 'Rajasthan Royals', shortName: 'RR', color: '#EA1A85', logo: '🩷' },
-  { name: 'Delhi Capitals', shortName: 'DC', color: '#17479E', logo: '🔷' },
-  { name: 'Punjab Kings', shortName: 'PBKS', color: '#DD1F2D', logo: '❤️' },
-  { name: 'Gujarat Titans', shortName: 'GT', color: '#1C1C1C', logo: '⚫' },
-  { name: 'Lucknow Super Giants', shortName: 'LSG', color: '#A72056', logo: '🩵' },
+  {
+    name: 'Chennai Super Kings',
+    shortName: 'CSK',
+    color: '#FFFF00',
+    logo: '🦁',
+  },
+  {
+    name: 'Mumbai Indians',
+    shortName: 'MI',
+    color: '#004BA0',
+    logo: '🔵',
+  },
+  {
+    name: 'Royal Challengers Bengaluru',
+    shortName: 'RCB',
+    color: '#EC1C24',
+    logo: '🔴',
+  },
+  {
+    name: 'Kolkata Knight Riders',
+    shortName: 'KKR',
+    color: '#3A225D',
+    logo: '🟣',
+  },
+  {
+    name: 'Sunrisers Hyderabad',
+    shortName: 'SRH',
+    color: '#FF822A',
+    logo: '🟠',
+  },
+  {
+    name: 'Rajasthan Royals',
+    shortName: 'RR',
+    color: '#EA1A85',
+    logo: '🩷',
+  },
+  {
+    name: 'Delhi Capitals',
+    shortName: 'DC',
+    color: '#17479E',
+    logo: '🔷',
+  },
+  {
+    name: 'Punjab Kings',
+    shortName: 'PBKS',
+    color: '#DD1F2D',
+    logo: '❤️',
+  },
+  {
+    name: 'Gujarat Titans',
+    shortName: 'GT',
+    color: '#1C1C1C',
+    logo: '⚫',
+  },
+  {
+    name: 'Lucknow Super Giants',
+    shortName: 'LSG',
+    color: '#A72056',
+    logo: '🩵',
+  },
 ];
