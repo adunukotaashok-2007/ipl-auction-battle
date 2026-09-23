@@ -1,23 +1,16 @@
 /* =========================================================
-   AUCTION LOBBY
+   IPL AUCTION BATTLE - LOBBY
+   Wide landscape layout
    ========================================================= */
 
 .lobby {
-  width: 100%;
-  max-width: 1250px;
-
   min-height: 100vh;
-  min-height: 100dvh;
-
-  margin: 0 auto;
-
-  padding: 24px;
-
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 5%;
+  margin: 0;
   animation: fadeIn 0.5s ease;
-
-  overflow-x: hidden;
 }
-
 
 /* =========================================================
    HEADER
@@ -25,398 +18,62 @@
 
 .lobby-header {
   width: 100%;
-
   text-align: center;
-
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .lobby-title {
   font-family: var(--font-display);
-
-  font-size: clamp(24px, 3vw, 36px);
-
-  font-weight: 800;
-
-  color: var(--accent-gold);
-
-  margin: 0;
-
-  line-height: 1.1;
-}
-
-
-/* =========================================================
-   MAIN SIDE-BY-SIDE LAYOUT
-   ========================================================= */
-
-.lobby-layout {
-  width: 100%;
-
-  display: grid;
-
-  /*
-   * Teams get more space.
-   * Room / information / actions stay together.
-   */
-  grid-template-columns:
-    minmax(0, 1.7fr)
-    minmax(300px, 0.8fr);
-
-  gap: 24px;
-
-  align-items: start;
-}
-
-
-/* =========================================================
-   LEFT TEAM PANEL
-   ========================================================= */
-
-.lobby-teams-panel {
-  min-width: 0;
-
-  background: rgba(13, 19, 55, 0.35);
-
-  border-radius: 18px;
-
-  padding: 20px;
-}
-
-
-/* =========================================================
-   TEAMS LIST
-   ========================================================= */
-
-.teams-list {
-  width: 100%;
-
-  margin: 0;
-}
-
-.teams-list-title {
-  font-size: 16px;
-
-  color: var(--text-muted);
-
-  text-transform: uppercase;
-
-  letter-spacing: 2px;
-
-  margin: 0 0 14px 0;
-
-  font-weight: 700;
-}
-
-.teams-container {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 10px;
-}
-
-
-/* =========================================================
-   TEAM ROW
-   ========================================================= */
-
-.team-row {
-  width: 100%;
-
-  min-height: 76px;
-
-  background: var(--bg-card);
-
-  border-radius: 12px;
-
-  padding: 14px 16px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-  gap: 16px;
-
-  border-left: 4px solid transparent;
-
-  transition:
-    transform 0.2s ease,
-    background 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-.team-row.my-team {
-  background: var(--bg-card-hover);
-
-  box-shadow:
-    0 0 14px
-    rgba(255, 215, 0, 0.12);
-}
-
-.team-row.disconnected {
-  opacity: 0.5;
-}
-
-
-/* =========================================================
-   TEAM LEFT
-   ========================================================= */
-
-.team-row-left {
-  min-width: 0;
-
-  display: flex;
-
-  align-items: center;
-
-  gap: 12px;
-}
-
-.team-row-logo {
-  flex: 0 0 auto;
-
   font-size: 32px;
-}
-
-.team-row-info {
-  min-width: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 3px;
-}
-
-.team-row-name {
-  font-size: 17px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-.team-row-player {
-  font-size: 12px;
-
-  color: var(--text-muted);
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-
-/* =========================================================
-   TEAM RIGHT
-   ========================================================= */
-
-.team-row-right {
-  flex: 0 0 auto;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: flex-end;
-
-  gap: 6px;
-
-  flex-wrap: wrap;
-}
-
-
-/* =========================================================
-   BADGES
-   ========================================================= */
-
-.host-badge {
-  background: rgba(255, 215, 0, 0.15);
-
+  font-weight: 800;
   color: var(--accent-gold);
-
-  padding: 5px 9px;
-
-  border-radius: 6px;
-
-  font-size: 11px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-}
-
-.dc-badge {
-  background: rgba(255, 68, 68, 0.15);
-
-  color: var(--accent-red);
-
-  padding: 5px 9px;
-
-  border-radius: 6px;
-
-  font-size: 11px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-}
-
-.ready-badge {
-  padding: 5px 9px;
-
-  border-radius: 6px;
-
-  font-size: 11px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-}
-
-.ready-badge.ready {
-  background: rgba(76, 175, 80, 0.15);
-
-  color: var(--accent-green);
-}
-
-.ready-badge.not-ready {
-  background: rgba(255, 152, 0, 0.15);
-
-  color: var(--accent-orange);
-}
-
-.you-badge {
-  background: rgba(74, 144, 217, 0.15);
-
-  color: var(--accent-blue);
-
-  padding: 5px 9px;
-
-  border-radius: 6px;
-
-  font-size: 11px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-}
-
-
-/* =========================================================
-   RIGHT SIDEBAR
-   ========================================================= */
-
-.lobby-sidebar {
-  min-width: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 16px;
-
-  background: rgba(13, 19, 55, 0.35);
-
-  border-radius: 18px;
-
-  padding: 20px;
-
-  position: sticky;
-
-  top: 16px;
-}
-
-
-/* =========================================================
-   ROOM CODE
-   ========================================================= */
-
-.room-section {
-  width: 100%;
-
-  text-align: center;
+  margin: 0 0 18px 0;
+  letter-spacing: 1px;
 }
 
 .room-code-display {
-  width: 100%;
-
-  display: flex;
-
+  display: inline-flex;
   align-items: center;
-
-  justify-content: space-between;
-
-  gap: 10px;
-
+  justify-content: center;
+  gap: 14px;
   background: var(--bg-card);
-
   border: 2px solid var(--accent-gold);
-
-  border-radius: 12px;
-
-  padding: 12px 14px;
+  border-radius: 14px;
+  padding: 12px 22px;
+  min-width: 280px;
+  box-sizing: border-box;
 }
 
 .room-code-label {
-  font-size: 11px;
-
+  font-size: 12px;
   color: var(--text-muted);
-
   text-transform: uppercase;
-
   letter-spacing: 1.5px;
-
-  margin-bottom: 6px;
 }
 
 .room-code-value {
   font-family: var(--font-display);
-
-  font-size: clamp(22px, 3vw, 30px);
-
+  font-size: 30px;
   font-weight: 800;
-
   color: var(--accent-gold);
-
-  letter-spacing: 5px;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
+  letter-spacing: 6px;
 }
 
 .copy-btn {
-  flex: 0 0 auto;
-
   background: var(--bg-card-hover);
-
   border: none;
-
-  border-radius: 7px;
-
-  padding: 8px 11px;
-
+  color: white;
+  border-radius: 8px;
+  padding: 7px 11px;
   font-size: 18px;
-
   cursor: pointer;
-
-  touch-action: manipulation;
+  transition: 0.2s ease;
 }
 
 .copy-btn:hover {
   background: var(--border-color);
+  transform: scale(1.05);
 }
-
 
 /* =========================================================
    INFORMATION CHIPS
@@ -424,150 +81,328 @@
 
 .lobby-info {
   width: 100%;
-
-  display: grid;
-
-  grid-template-columns: 1fr;
-
-  gap: 10px;
-
-  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
 }
 
 .info-chip {
   background: var(--bg-card);
-
-  padding: 11px 14px;
-
-  border-radius: 12px;
-
-  font-size: 14px;
-
+  padding: 10px 20px;
+  border-radius: 22px;
+  font-size: 15px;
   font-weight: 600;
-
   color: var(--text-secondary);
-
   display: flex;
-
   align-items: center;
-
-  gap: 10px;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
 }
 
-.info-chip > span {
-  font-size: 20px;
+/* =========================================================
+   MAIN LOBBY GRID
+   ========================================================= */
 
-  flex: 0 0 auto;
+.lobby-main-grid {
+  width: 100%;
+  max-width: 1250px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.8fr);
+  gap: 24px;
+  align-items: start;
 }
 
-.info-chip > div {
+/* =========================================================
+   TEAMS PANEL
+   ========================================================= */
+
+.teams-panel {
+  background: rgba(20, 25, 60, 0.55);
+  border: 1px solid rgba(255, 215, 0, 0.12);
+  border-radius: 18px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.teams-list {
+  margin: 0;
+}
+
+.teams-list-title {
+  font-size: 17px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0 0 14px 0;
+  font-weight: 700;
+}
+
+/* =========================================================
+   TEAM ROW
+   ========================================================= */
+
+.team-row {
+  width: 100%;
+  box-sizing: border-box;
+
+  background: var(--bg-card);
+  border-radius: 13px;
+  padding: 14px 16px;
+
   display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-  align-items: baseline;
+  margin-bottom: 10px;
 
-  gap: 6px;
+  border-left: 5px solid transparent;
 
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.team-row:hover {
+  transform: translateY(-1px);
+  background: var(--bg-card-hover);
+}
+
+.team-row.my-team {
+  background: var(--bg-card-hover);
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.10);
+}
+
+.team-row.disconnected {
+  opacity: 0.5;
+}
+
+/* =========================================================
+   TEAM LEFT
+   ========================================================= */
+
+.team-row-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
 }
 
-.info-chip strong {
-  color: var(--text-primary);
-
-  font-size: 14px;
-}
-
-.info-chip small {
-  color: var(--text-muted);
-
-  font-size: 12px;
-}
-
-
-/* =========================================================
-   ACTIONS
-   ========================================================= */
-
-.lobby-actions {
-  width: 100%;
+.team-row-logo {
+  width: 45px;
+  height: 45px;
 
   display: flex;
+  align-items: center;
+  justify-content: center;
 
+  font-size: 30px;
+  flex-shrink: 0;
+}
+
+.team-row-info {
+  display: flex;
   flex-direction: column;
+  min-width: 0;
+}
 
-  gap: 10px;
+.team-row-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
+.team-row-player {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* =========================================================
+   TEAM RIGHT
+   ========================================================= */
+
+.team-row-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-left: 15px;
+}
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.host-badge {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--accent-gold);
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dc-badge {
+  background: rgba(255, 68, 68, 0.15);
+  color: var(--accent-red);
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ready-badge {
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ready-badge.ready {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--accent-green);
+}
+
+.ready-badge.not-ready {
+  background: rgba(255, 152, 0, 0.15);
+  color: var(--accent-orange);
+}
+
+.you-badge {
+  background: rgba(74, 144, 217, 0.15);
+  color: var(--accent-blue);
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   RIGHT-SIDE LOBBY ACTIONS
+   ========================================================= */
+
+.lobby-actions-panel {
+  background: rgba(20, 25, 60, 0.55);
+  border: 1px solid rgba(255, 215, 0, 0.16);
+  border-radius: 18px;
+  padding: 20px;
+  box-sizing: border-box;
+
+  position: sticky;
+  top: 20px;
+}
+
+.lobby-actions-title {
+  color: var(--accent-gold);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin: 0 0 16px 0;
+}
+
+.lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   align-items: stretch;
 }
 
 .lobby-actions .btn {
   width: 100%;
+  box-sizing: border-box;
 }
 
 .btn-danger {
-  background:
-    linear-gradient(
-      135deg,
-      var(--accent-red),
-      #CC0000
-    );
-
+  background: linear-gradient(
+    135deg,
+    var(--accent-red),
+    #cc0000
+  );
   color: white;
 }
 
 .btn-sm {
   padding: 10px 20px;
-
   font-size: 14px;
 }
-
 
 /* =========================================================
    LANDSCAPE PHONE
    ========================================================= */
 
-@media screen and
-  (max-width: 900px) and
-  (orientation: landscape) {
+@media (max-height: 600px) and (orientation: landscape) {
 
   .lobby {
-    max-width: 1200px;
-
-    min-height: 100dvh;
-
-    padding: 12px 18px 20px;
+    padding: 14px 4%;
   }
 
   .lobby-header {
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
 
   .lobby-title {
-    font-size: clamp(22px, 4vw, 30px);
+    font-size: 25px;
+    margin-bottom: 10px;
   }
 
-  .lobby-layout {
-    grid-template-columns:
-      minmax(0, 1.65fr)
-      minmax(250px, 0.85fr);
+  .room-code-display {
+    padding: 8px 16px;
+  }
 
+  .room-code-value {
+    font-size: 24px;
+  }
+
+  .lobby-info {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .info-chip {
+    padding: 7px 13px;
+    font-size: 12px;
+  }
+
+  .lobby-main-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(240px, 0.8fr);
     gap: 14px;
   }
 
-  .lobby-teams-panel,
-  .lobby-sidebar {
+  .teams-panel,
+  .lobby-actions-panel {
     padding: 14px;
+  }
 
-    border-radius: 14px;
+  .teams-list-title {
+    margin-bottom: 9px;
+    font-size: 14px;
   }
 
   .team-row {
-    min-height: 60px;
-
-    padding: 10px 12px;
+    padding: 9px 12px;
+    margin-bottom: 7px;
   }
 
   .team-row-logo {
-    font-size: 26px;
+    width: 35px;
+    height: 35px;
+    font-size: 24px;
   }
 
   .team-row-name {
@@ -575,245 +410,108 @@
   }
 
   .team-row-player {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .host-badge,
-  .dc-badge,
   .ready-badge,
-  .you-badge {
+  .you-badge,
+  .dc-badge {
     padding: 4px 7px;
-
     font-size: 9px;
+  }
+}
+
+/* =========================================================
+   TABLET / NORMAL WIDTH
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  .lobby {
+    padding: 20px 3%;
+  }
+
+  .lobby-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-actions-panel {
+    position: static;
+  }
+
+  .lobby-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .lobby-actions .btn {
+    flex: 1;
+    min-width: 180px;
+  }
+}
+
+/* =========================================================
+   SMALL PORTRAIT
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .lobby {
+    padding: 15px 12px;
+  }
+
+  .lobby-title {
+    font-size: 22px;
   }
 
   .room-code-display {
-    padding: 9px 11px;
+    min-width: auto;
+    width: 100%;
   }
 
   .room-code-value {
     font-size: 22px;
-
     letter-spacing: 4px;
   }
 
-  .lobby-sidebar {
-    gap: 10px;
-
-    position: static;
-  }
-
   .lobby-info {
-    gap: 7px;
+    gap: 8px;
   }
 
   .info-chip {
-    padding: 8px 10px;
-
     font-size: 12px;
+    padding: 7px 11px;
   }
 
-  .info-chip > span {
-    font-size: 17px;
-  }
-
-  .info-chip strong {
-    font-size: 12px;
-  }
-
-  .info-chip small {
-    font-size: 10px;
-  }
-
-  .lobby-actions {
-    gap: 7px;
-  }
-}
-
-
-/* =========================================================
-   SHORT LANDSCAPE PHONE
-   ========================================================= */
-
-@media screen and
-  (max-height: 500px) and
-  (orientation: landscape) {
-
-  .lobby {
-    padding: 8px 14px 14px;
-  }
-
-  .lobby-header {
-    margin-bottom: 8px;
-  }
-
-  .lobby-title {
-    font-size: 21px;
-  }
-
-  .lobby-layout {
-    gap: 10px;
-  }
-
-  .lobby-teams-panel,
-  .lobby-sidebar {
-    padding: 10px;
-  }
-
-  .teams-list-title {
-    font-size: 12px;
-
-    margin-bottom: 7px;
+  .teams-panel,
+  .lobby-actions-panel {
+    padding: 13px;
   }
 
   .team-row {
-    min-height: 52px;
+    padding: 11px;
+  }
 
-    padding: 7px 9px;
+  .team-row-left {
+    gap: 8px;
+  }
+
+  .team-row-right {
+    margin-left: 8px;
   }
 
   .team-row-logo {
-    font-size: 22px;
+    width: 34px;
+    height: 34px;
+    font-size: 24px;
   }
 
   .team-row-name {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .team-row-player {
     font-size: 10px;
-  }
-
-  .room-code-label {
-    font-size: 9px;
-
-    margin-bottom: 3px;
-  }
-
-  .room-code-value {
-    font-size: 19px;
-
-    letter-spacing: 3px;
-  }
-
-  .copy-btn {
-    padding: 5px 8px;
-
-    font-size: 15px;
-  }
-
-  .info-chip {
-    padding: 6px 8px;
-  }
-
-  .info-chip > span {
-    font-size: 15px;
-  }
-
-  .lobby-actions .btn {
-    min-height: 38px;
-
-    padding: 7px 10px;
-
-    font-size: 12px;
-  }
-}
-
-
-/* =========================================================
-   PORTRAIT / SMALL SCREEN
-   ========================================================= */
-
-@media screen and (max-width: 700px) and (orientation: portrait) {
-
-  .lobby {
-    width: 100%;
-
-    max-width: 600px;
-
-    padding: 16px 12px 24px;
-  }
-
-  .lobby-header {
-    margin-bottom: 18px;
-  }
-
-  .lobby-title {
-    font-size: 23px;
-  }
-
-  /*
-   * Portrait returns to a normal vertical layout.
-   */
-  .lobby-layout {
-    grid-template-columns: 1fr;
-
-    gap: 14px;
-  }
-
-  .lobby-sidebar {
-    position: static;
-
-    order: -1;
-  }
-
-  .lobby-teams-panel,
-  .lobby-sidebar {
-    padding: 14px;
-  }
-
-  .room-code-value {
-    font-size: 22px;
-
-    letter-spacing: 4px;
-  }
-
-  .lobby-info {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .info-chip:last-child {
-    grid-column: 1 / -1;
-  }
-}
-
-
-/* =========================================================
-   VERY SMALL PORTRAIT PHONES
-   ========================================================= */
-
-@media screen and (max-width: 400px) {
-
-  .lobby {
-    padding: 12px 9px 20px;
-  }
-
-  .lobby-title {
-    font-size: 21px;
-  }
-
-  .team-row {
-    padding: 10px;
-  }
-
-  .team-row-right {
-    gap: 4px;
-  }
-
-  .host-badge,
-  .dc-badge,
-  .ready-badge,
-  .you-badge {
-    padding: 4px 6px;
-
-    font-size: 9px;
-  }
-
-  .lobby-info {
-    grid-template-columns: 1fr;
-  }
-
-  .info-chip:last-child {
-    grid-column: auto;
   }
 }
