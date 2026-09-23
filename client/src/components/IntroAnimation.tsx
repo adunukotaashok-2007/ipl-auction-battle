@@ -6,129 +6,100 @@ interface IntroAnimationProps {
 }
 
 const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
-  const [stage, setStage] = useState(0);
-  const [showButton, setShowButton] = useState(false);
+  const [phase, setPhase] = useState<'intro' | 'action' | 'exit'>('intro');
 
   useEffect(() => {
-    const timers = [
-      window.setTimeout(() => setStage(1), 500),
-      window.setTimeout(() => setStage(2), 1600),
-      window.setTimeout(() => setStage(3), 2800),
-      window.setTimeout(() => setShowButton(true), 4200),
-    ];
+    const actionTimer = window.setTimeout(() => {
+      setPhase('action');
+    }, 1200);
+
+    const exitTimer = window.setTimeout(() => {
+      setPhase('exit');
+    }, 3600);
+
+    const completeTimer = window.setTimeout(() => {
+      onComplete();
+    }, 4500);
 
     return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
+      window.clearTimeout(actionTimer);
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(completeTimer);
     };
-  }, []);
-
-  const handleEnter = () => {
-    setStage(4);
-
-    window.setTimeout(() => {
-      onComplete();
-    }, 700);
-  };
+  }, [onComplete]);
 
   return (
-    <div className={`intro-screen stage-${stage}`}>
+    <div className={`intro-screen ${phase}`}>
+      {/* Stadium lights */}
+      <div className="stadium-lights">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
+      {/* Background stadium */}
       <div className="intro-stadium">
-        <div className="stadium-glow stadium-glow-left" />
-        <div className="stadium-glow stadium-glow-right" />
-
-        <div className="floodlight floodlight-left">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-
-        <div className="floodlight floodlight-right">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-
-        <div className="stadium-stands">
-          <div className="stand stand-one" />
-          <div className="stand stand-two" />
-          <div className="stand stand-three" />
-        </div>
+        <div className="stadium-stand stand-left" />
+        <div className="stadium-stand stand-right" />
 
         <div className="stadium-field">
-          <div className="field-line field-line-one" />
-          <div className="field-line field-line-two" />
           <div className="pitch">
-            <div className="pitch-line pitch-line-top" />
-            <div className="pitch-line pitch-line-bottom" />
+            <div className="pitch-line pitch-top" />
+            <div className="pitch-line pitch-bottom" />
           </div>
         </div>
       </div>
 
-      <div className="particles">
-        {Array.from({ length: 35 }).map((_, index) => (
-          <span
-            key={index}
-            className="particle"
-            style={{
-              '--delay': `${(index % 10) * 0.35}s`,
-              '--left': `${(index * 29) % 100}%`,
-              '--duration': `${4 + (index % 5)}s`,
-            } as React.CSSProperties}
-          />
-        ))}
-      </div>
-
-      <div className="cricket-ball">
+      {/* Cricket ball */}
+      <div className="intro-ball">
         <div className="ball-seam" />
       </div>
 
-      <div className="intro-content">
-        <div className="welcome-text">
-          {stage >= 1 && (
-            <div className="welcome-small">
-              WELCOME TO
-            </div>
-          )}
+      {/* Bowler */}
+      <div className="intro-player bowler">
+        <div className="player-head" />
+        <div className="player-body" />
+        <div className="player-arm left-arm" />
+        <div className="player-arm right-arm" />
+        <div className="player-leg left-leg" />
+        <div className="player-leg right-leg" />
+      </div>
 
-          {stage >= 2 && (
-            <div className="main-title">
-              <span className="title-top">IPL</span>
-              <span className="title-bottom">AUCTION</span>
-            </div>
-          )}
+      {/* Batsman */}
+      <div className="intro-player batsman">
+        <div className="player-head helmet" />
+        <div className="player-body" />
+        <div className="player-arm left-arm" />
+        <div className="player-arm right-arm" />
 
-          {stage >= 3 && (
-            <div className="battle-title">
-              BATTLE
-            </div>
-          )}
-
-          {stage >= 3 && (
-            <div className="subtitle">
-              BUILD YOUR SQUAD • BID • COMPETE • WIN
-            </div>
-          )}
+        <div className="bat">
+          <div className="bat-handle" />
+          <div className="bat-blade" />
         </div>
 
-        {showButton && stage < 4 && (
-          <button
-            type="button"
-            className="enter-button"
-            onClick={handleEnter}
-          >
-            <span>ENTER AUCTION</span>
-            <span className="button-arrow">→</span>
-          </button>
-        )}
+        <div className="player-leg left-leg" />
+        <div className="player-leg right-leg" />
       </div>
 
-      <div className="intro-bottom">
-        <span>CRICKET AUCTION BATTLE</span>
+      {/* Title */}
+      <div className="intro-title">
+        <div className="small-title">WELCOME TO</div>
+        <h1>CRICKET</h1>
+        <h2>AUCTION BATTLE</h2>
+        <div className="title-line" />
       </div>
 
-      <div className="intro-vignette" />
+      {/* Loading */}
+      <div className="intro-loading">
+        <span>LOADING GAME</span>
+        <div className="loading-bar">
+          <div className="loading-progress" />
+        </div>
+      </div>
+
+      {/* Dark transition */}
+      <div className="intro-fade" />
     </div>
   );
 };
