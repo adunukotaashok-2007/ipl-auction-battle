@@ -7,7 +7,7 @@ import AuctionScreen from './components/AuctionScreen';
 import FinishScreen from './components/FinishScreen';
 import MatchScreen from './components/MatchScreen';
 import SoldAnimation from './components/SoldAnimation';
-import IntroAnimation from './components/IntroAnimation';
+import CinematicIntro from './components/CinematicIntro';
 
 import './App.css';
 
@@ -23,9 +23,14 @@ function AppContent() {
     clearError,
   } = useGame();
 
-  // Opening animation
+  // ============================================
+  // CINEMATIC OPENING INTRO
+  // ============================================
   const [showIntro, setShowIntro] = useState<boolean>(true);
 
+  // ============================================
+  // PORTRAIT / LANDSCAPE DETECTION
+  // ============================================
   const [isPortrait, setIsPortrait] = useState<boolean>(
     window.innerHeight > window.innerWidth &&
       window.innerWidth < 768
@@ -62,6 +67,9 @@ function AppContent() {
     };
   }, []);
 
+  // ============================================
+  // MAIN GAME SCREEN
+  // ============================================
   const renderScreen = () => {
     if (!roomData) {
       return <Home />;
@@ -91,15 +99,12 @@ function AppContent() {
     }
   };
 
-  /*
-   * Show the opening animation first.
-   *
-   * GameProvider is still running behind the animation,
-   * so Socket.IO/game state can initialize normally.
-   */
+  // ============================================
+  // SHOW CINEMATIC INTRO FIRST
+  // ============================================
   if (showIntro) {
     return (
-      <IntroAnimation
+      <CinematicIntro
         onComplete={() => {
           setShowIntro(false);
         }}
@@ -107,12 +112,15 @@ function AppContent() {
     );
   }
 
+  // ============================================
+  // NORMAL APPLICATION
+  // ============================================
   return (
     <div className="app">
 
-      {/* ================================
+      {/* ========================================
           PORTRAIT WARNING
-          ================================ */}
+          ======================================== */}
       {isPortrait && (
         <div
           className="portrait-warning-overlay"
@@ -165,9 +173,9 @@ function AppContent() {
         </div>
       )}
 
-      {/* ================================
+      {/* ========================================
           CONNECTION STATUS
-          ================================ */}
+          ======================================== */}
       {!connected && (
         <div className="connection-banner">
           <div className="connection-dot"></div>
@@ -175,9 +183,9 @@ function AppContent() {
         </div>
       )}
 
-      {/* ================================
+      {/* ========================================
           NORMAL NOTIFICATION
-          ================================ */}
+          ======================================== */}
       {notification && (
         <div
           className="notification"
@@ -187,9 +195,9 @@ function AppContent() {
         </div>
       )}
 
-      {/* ================================
+      {/* ========================================
           ERROR NOTIFICATION
-          ================================ */}
+          ======================================== */}
       {error && (
         <div
           className="notification error-notification"
@@ -199,9 +207,9 @@ function AppContent() {
         </div>
       )}
 
-      {/* ================================
+      {/* ========================================
           SOLD ANIMATION
-          ================================ */}
+          ======================================== */}
       {soldAnimation && soldAnimation.player && (
         <SoldAnimation
           playerName={soldAnimation.player.name}
@@ -211,9 +219,9 @@ function AppContent() {
         />
       )}
 
-      {/* ================================
+      {/* ========================================
           UNSOLD ANIMATION
-          ================================ */}
+          ======================================== */}
       {unsoldAnimation && unsoldAnimation.player && (
         <SoldAnimation
           playerName={unsoldAnimation.player.name}
@@ -223,13 +231,17 @@ function AppContent() {
         />
       )}
 
-      {/* ================================
+      {/* ========================================
           MAIN GAME SCREEN
-          ================================ */}
+          ======================================== */}
       {renderScreen()}
     </div>
   );
 }
+
+// ============================================
+// APP ROOT
+// ============================================
 
 function App() {
   return (
