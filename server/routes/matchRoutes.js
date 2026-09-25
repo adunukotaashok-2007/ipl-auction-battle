@@ -1,9 +1,3 @@
-/**
- * matchRoutes.js
- * ==============
- * API routes for the cricket match game engine.
- */
-
 const express = require('express');
 const router = express.Router();
 const matchController = require('../controllers/matchController');
